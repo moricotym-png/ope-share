@@ -199,6 +199,11 @@ var K_PASS = 'ope-pass', K_NAME = 'ope-name', K_AGREE = 'ope-agreed-v1';
 var IMPLANT_SYSTEMS = ['デンツプライシロナ PrimeTaper', 'DIO', 'ノーベルバイオケア NobelActive'];
 var CAPS = { '': '未定', ha: 'ヒーリングアバットメント', cs: 'カバースクリュー' };
 var HA_HEIGHTS = ['1mm', '1.5mm', '2mm', '2.5mm', '3mm', '4mm', '5mm', '6mm', '7mm'];
+/* メス刃（院内で使っているもの。増えたらここに追加） */
+var BLADES = ['フェザー No.390C', 'KAI 15c', 'KAI 12', 'フェザー No.350'];
+var HOLDERS = { both: '両方', pen: 'ペン型', angled: '曲（斜め）' };
+var HOLDER_SHORT = { both: 'ペン型・曲', pen: 'ペン型', angled: '曲（斜め）' };
+var HOLDER_ITEM = { both: 'メスホルダー ペン型×2・曲×2', pen: 'メスホルダー ペン型×2', angled: 'メスホルダー 曲×2' };
 var DRIVERS = { both: 'ショート・ロング両方', short: 'ショート', long: 'ロング' };
 function capText(c) { return c.cap ? CAPS[c.cap] + (c.cap === 'ha' && c.haHeight ? '（高さ ' + c.haHeight + '）' : '') : ''; }
 var GUIDES = { none: 'なし', out: '外注', inhouse: 'インハウス' };
@@ -291,18 +296,18 @@ var IMPLANT_BASE = [
   'ディスポーザブルシリンジ10mL', 'タオルクランプ', 'ガラスシリンジ針', 'トルクレンチ',
   '【カセッテ】', 'サージチップマイクロアダプター', 'マイクロミラー×2', '排唾管', 'ハサミ（歯肉用）', 'モスキートペアン', '注射筒', 'ピンセット（基本セットのもの）',
   'ピンセット（まっすぐで長いもの）', '雑メス',
-  '【バット】', '剥離子（七浦型）', 'ダイセクター', 'メスホルダー ペン型×2・曲×2', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ハサミ（糸用）',
+  '【バット】', '剥離子（七浦型）', 'ダイセクター', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ハサミ（糸用）',
   'ボーンキュレット 大・小', '持針器（傷つきやすいので単独滅菌袋）',
   '【Drに確認するもの】', '剥離子 Fopセット（カラーのもの）', 'メタルプローブ', 'プラスチックプローブ', '舌圧子', '鋭匙', 'その他ピンセット', '眼科メス 大・小',
   'オプトラゲート', 'サリバエジェクター', 'マイクロ用持針器・ピンセット（単独滅菌）', 'セーフスクレイパー', 'ニエットキャリア',
   '【予備】', 'バイトブロック', 'ガーゼ', 'アルミホイル', 'メス刃・縫合糸の在庫と使用するものをチェック'
 ];
 var EXTRACTION_SET = [
-  '【抜歯器具（オペ室 or オペ前ユニット）】', '排唾管', '外科用バキューム', 'ミラーピンセット', 'メスホルダー ペン型', 'メスホルダー 曲', 'メス刃', 'ダイセクター',
+  '【抜歯器具（オペ室 or オペ前ユニット）】', '排唾管', '外科用バキューム', 'ミラーピンセット', 'メス刃', 'ダイセクター',
   '剥離子（七浦型）', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（有鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ボーンキュレット 大・小', '鋭匙 大・小',
   'ヘーベル（日大型）', 'ヘーベル（細ブルー）', 'ルートチップ', '残根鉗子', '鉗子', '眼科用メス 大・小', '持針器', 'ハサミ'
 ];
-var SEED_VERSION = 3;
+var SEED_VERSION = 4;
 function T(id, category, name, instruments, cautions, risks) {
   return { id: id, category: category, name: name, instruments: instruments, cautions: cautions,
            risks: risks, steps: '', refs: [], draft: true, seedVersion: SEED_VERSION };
@@ -706,6 +711,12 @@ function viewCaseForm(id) {
     '<label class="f">部位・本数</label><input type="text" name="site" placeholder="例：#36 1本" value="' + esc(c.site) + '">' +
     implantFields(c) +
     '<label class="f">詳細（サイズ・材料など）</label><input type="text" name="detail" placeholder="例：φ4.0×10mm" value="' + esc(c.detail) + '">' +
+    '<label class="f">メス刃（使うものすべて）</label><div class="seg">' + BLADES.map(function (b) {
+      return '<label><input type="checkbox" name="blade" value="' + esc(b) + '"' + ((c.blades || []).indexOf(b) >= 0 ? ' checked' : '') + '><span>' + esc(b) + '</span></label>';
+    }).join('') + '</div>' +
+    '<label class="f">メスホルダー</label><div class="seg">' + Object.keys(HOLDERS).map(function (k) {
+      return '<label><input type="radio" name="holder" value="' + k + '"' + ((c.holder || 'both') === k ? ' checked' : '') + '><span>' + HOLDERS[k] + '</span></label>';
+    }).join('') + '</div>' +
     '<label class="f">静脈内鎮静</label><div class="seg">' + Object.keys(SEDATION).map(function (k) {
       return '<label><input type="radio" name="sedation" value="' + k + '"' + ((c.sedation || 'none') === k ? ' checked' : '') + '><span>' + SEDATION[k] + '</span></label>';
     }).join('') + '</div>' +
@@ -803,6 +814,11 @@ function memText(m) { return m.type + (m.size ? ' ' + m.size : '') + (m.count ? 
 function boneText(b) { return b.type + (b.amount ? ' ' + b.amount + (b.unit || 'g') : ''); }
 function autoItems(c) {
   var out = [];
+  (c.blades || []).forEach(function (b) { out.push('メス刃：' + b); });
+  if (c.holder || (c.blades || []).length) {
+    out.push(HOLDER_ITEM[c.holder || 'both']);
+    if (tplIds(c).indexOf('t-imm') >= 0) out.push('抜歯器具用のメスホルダー：' + HOLDER_SHORT[c.holder || 'both']);
+  }
   if (c.system) out.push('フィクスチャー（' + c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '') + '）予定サイズ＋前後のサイズ', c.system + ' のサージカルキット');
   if (c.system && c.cap) out.push(CAPS[c.cap] + '（' + c.system + (c.cap === 'ha' && c.haHeight ? '・高さ ' + c.haHeight : '') + '）');
   if (c.system) out.push('ドライバー（' + DRIVERS[c.driver || 'both'] + '）');
@@ -821,6 +837,7 @@ function implantSummary(c) {
   var parts = [];
   if (c.system) parts.push(c.system + (implantN(c) ? ' ' + implantN(c) + '本' : ''));
   if (c.cap) parts.push(capText(c));
+  if ((c.blades || []).length) parts.push('メス：' + c.blades.join('・'));
   if (c.guide && c.guide !== 'none') parts.push('ガイド：' + GUIDES[c.guide]);
   if (c.system || c.guide || c.grafts) parts.push('グラフト：' + ((c.grafts || []).length ? c.grafts.map(function (g) { return g === '骨補填材' && (c.bones || []).length ? '骨補填材（' + c.bones.map(boneText).join('、') + '）' : g === 'メンブレン' && (c.membranes || []).length ? 'メンブレン（' + c.membranes.map(memText).join('、') + '）' : g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount) ? '自家骨（' + autoText(c.autobone) + '）' : g; }).join('・') : 'なし'));
   return parts.join('　');
@@ -1174,6 +1191,8 @@ function viewStats() {
 
   var procRows = flat(yc.map(function (c) { return tplIds(c).map(function (id) { var t = byId('templates', id); return t ? t.category + '｜' + t.name : '（削除されたテンプレート）'; }); }));
   var byProc = tally(procRows, function (x) { return x; }, function () { return 1; });
+  var bladeRows = tally(flat(yc.map(function (c) { return c.blades || []; })), function (x) { return x; }, function () { return 1; });
+  if (bladeRows.length) h += '<div class="card"><h2>メス刃（使った症例数）</h2>' + tableHtml(['メス刃', '症例数'], bladeRows.map(function (r) { return [r[0], r[1] + '件']; })) + '</div>';
   h += '<div class="card"><h2>処置別の件数（併用はそれぞれに数える）</h2>' + tableHtml(['処置', '件数'], byProc.map(function (r) { return [r[0], r[1] + '件']; })) + '</div>';
   h += '<p class="muted">「オペ終了」にした症例だけを集計しています。骨補填材の量は予定量です。実際と違ったときは症例を編集してください。</p>';
   return h;
@@ -1393,6 +1412,8 @@ document.addEventListener('submit', function (e) {
     c.templateIds = tids; delete c.templateId; c.procedureName = procName(tplsOf(c)); c.items = c.items || [];
     c.date = v('date'); c.time = v('time'); c.chartNo = chart; c.age = v('age'); c.sex = v('sex'); c.site = v('site'); c.detail = v('detail');
     c.roles = { surgeon: v('surgeon'), assist: v('assist'), circ: v('circ') }; c.notes = v('notes');
+    c.blades = [].slice.call(f.querySelectorAll('input[name=blade]:checked')).map(function (x) { return x.value; });
+    c.holder = (f.querySelector('input[name=holder]:checked') || {}).value || 'both';
     c.sedation = (f.querySelector('input[name=sedation]:checked') || {}).value || 'none';
     c.anesthetist = c.sedation === 'iv' ? v('anesthetist') : '';
     c.unitFlow = v('unitFlow');
