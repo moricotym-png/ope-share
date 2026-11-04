@@ -829,9 +829,14 @@ function viewCase(id) {
       (cautions.length ? '<ul class="plain">' + cautions.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
   }
 
-  h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 器具・材料（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
+  var place = c.unitFlow === 'u32' ? 'オペ前ユニット（ユニット3）' : c.unitFlow === 'u2' ? 'オペ室（ユニット2）' : '';
+  var sheet = [['日付', fmtDate(c.date) + ' ' + (c.time || '')], ['部位', c.site || '—']];
+  if (c.system) sheet.push(['フィクスチャー', c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '')], ['ヒーリングアバットメント・カバースクリュー', CAPS[c.cap || ''] || '未定'],
+    ['ステント', c.guide && c.guide !== 'none' ? GUIDES[c.guide] + '（試適はチェックリストで確認）' : '無']);
+  h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 準備物（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
+    '<table class="tbl" style="margin:8px 0 4px"><tbody>' + sheet.map(function (r) { return '<tr><td class="muted" style="width:42%">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</tbody></table>' +
     keyed(c.items).map(function (k, i) {
-      if (k.head) return '<div class="sechead">' + esc(k.text) + '</div>';
+      if (k.head) return '<div class="sechead">' + esc(place && /オペ室 or オペ前ユニット/.test(k.text) ? k.text.replace('オペ室 or オペ前ユニット', place) : k.text) + '</div>';
       var ck = (c.checks || {})[k.key];
       return '<label class="check' + (ck ? ' done' : '') + '"><input type="checkbox" data-a="check" data-id="' + c.id + '" data-i="' + i + '"' + (ck ? ' checked' : '') + '>' +
         '<div class="grow"><div class="txt">' + esc(k.text) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div></label>';
