@@ -157,6 +157,7 @@ table.tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .sharebar div { height: 100%; background: var(--ok); border-radius: 999px; }
 .who { font-size: 16px; font-weight: 800; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .sechead { margin: 14px 0 2px; padding: 4px 8px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 800; border-radius: 6px; }
+.delbtn { color: var(--muted); font-size: 12px; padding: 4px 2px; flex: none; }
 .demo { background: var(--warn-soft); color: var(--warn); font-size: 12px; text-align: center; padding: 4px; }
 </style>
 </head>
@@ -197,6 +198,9 @@ var K_PASS = 'ope-pass', K_NAME = 'ope-name', K_AGREE = 'ope-agreed-v1';
 /* インプラントシステム（増えたらここに追加） */
 var IMPLANT_SYSTEMS = ['デンツプライシロナ PrimeTaper', 'DIO', 'ノーベルバイオケア NobelActive'];
 var CAPS = { '': '未定', ha: 'ヒーリングアバットメント', cs: 'カバースクリュー' };
+var HA_HEIGHTS = ['1mm', '1.5mm', '2mm', '2.5mm', '3mm', '4mm', '5mm', '6mm', '7mm'];
+var DRIVERS = { both: 'ショート・ロング両方', short: 'ショート', long: 'ロング' };
+function capText(c) { return c.cap ? CAPS[c.cap] + (c.cap === 'ha' && c.haHeight ? '（高さ ' + c.haHeight + '）' : '') : ''; }
 var GUIDES = { none: 'なし', out: '外注', inhouse: 'インハウス' };
 var GRAFTS = ['骨補填材', 'メンブレン', '自家骨', '軟組織移植'];
 var IMPLANT_CATS = ['インプラント', '骨造成'];
@@ -251,7 +255,10 @@ function rebuildItems(c, oldM, newM) {
   var extras = keyed(c.items || []).filter(function (k) {
     return !k.head && newK.indexOf(k.key) < 0 && (oldK.indexOf(k.key) < 0 || (c.checks || {})[k.key]);
   });
-  var out = newM.slice(), lastSec = null;
+  var removed = c.removed || [];
+  var out = [], kn = keyed(newM);
+  newM.forEach(function (l, i) { if (kn[i].head || removed.indexOf(kn[i].key) < 0) out.push(l); });
+  var lastSec = null;
   extras.forEach(function (k) {
     var sec = k.sec || EXTRA_HEAD.slice(1, -1);
     if (sec !== lastSec) { out.push('【' + sec + '】'); lastSec = sec; }
@@ -281,7 +288,7 @@ var IMPLANT_BASE = [
   '【オペ当日：インプランター】', 'クリップ（二重パック）大・小', 'インプランターハンドピース（2重パック）', 'イリゲーションチューブ', 'モータースタンド',
   'ホースカバー×3（サクション・排唾管・インプランター）', '生理食塩水（ゴム栓・開栓の本数を確認）',
   '【オペ当日：器具】', 'チタンボウル・チタンピンセット', 'ダッペングラス×2', 'シャーレ×2', '開口器', 'ワイヤー鉤', 'チタンプローブ', 'サージチップマイクロ',
-  'ディスポーザブルシリンジ10mL', 'タオルクランプ', 'ガラスシリンジ針', 'ドライバー ショート・ロング', 'トルクレンチ',
+  'ディスポーザブルシリンジ10mL', 'タオルクランプ', 'ガラスシリンジ針', 'トルクレンチ',
   '【カセッテ】', 'サージチップマイクロアダプター', 'マイクロミラー×2', '排唾管', 'ハサミ（歯肉用）', 'モスキートペアン', '注射筒', 'ピンセット（基本セットのもの）',
   'ピンセット（まっすぐで長いもの）', '雑メス',
   '【バット】', '剥離子（七浦型）', 'ダイセクター', 'メスホルダー ペン型×2・曲×2', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ハサミ（糸用）',
@@ -295,7 +302,7 @@ var EXTRACTION_SET = [
   '剥離子（七浦型）', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（有鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ボーンキュレット 大・小', '鋭匙 大・小',
   'ヘーベル（日大型）', 'ヘーベル（細ブルー）', 'ルートチップ', '残根鉗子', '鉗子', '眼科用メス 大・小', '持針器', 'ハサミ'
 ];
-var SEED_VERSION = 2;
+var SEED_VERSION = 3;
 function T(id, category, name, instruments, cautions, risks) {
   return { id: id, category: category, name: name, instruments: instruments, cautions: cautions,
            risks: risks, steps: '', refs: [], draft: true, seedVersion: SEED_VERSION };
@@ -736,6 +743,13 @@ function implantFields(c) {
     '<label class="f">ヒーリングアバットメント／カバースクリュー</label><div class="seg">' + Object.keys(CAPS).map(function (k) {
       return '<label><input type="radio" name="cap" value="' + k + '"' + ((c.cap || '') === k ? ' checked' : '') + '><span>' + CAPS[k] + '</span></label>';
     }).join('') + '</div>' +
+    '<div id="haBox" style="' + (c.cap === 'ha' ? '' : 'display:none') + '"><label class="f">ヒーリングアバットメントの高さ</label>' +
+    '<input type="text" name="haHeight" list="haList" placeholder="選ぶか入力（例：3mm、#36は4mm）" value="' + esc(c.haHeight || '') + '">' +
+    '<datalist id="haList">' + HA_HEIGHTS.map(function (x) { return '<option value="' + x + '">'; }).join('') + '</datalist>' +
+    '<div class="muted">本数が複数で高さが違うときは「#36 3mm、#37 4mm」のように書きます</div></div>' +
+    '<label class="f">ドライバー</label><div class="seg">' + Object.keys(DRIVERS).map(function (k) {
+      return '<label><input type="radio" name="driver" value="' + k + '"' + ((c.driver || 'both') === k ? ' checked' : '') + '><span>' + DRIVERS[k] + '</span></label>';
+    }).join('') + '</div>' +
     '<label class="f">サージカルガイド（ステント）</label><div class="seg">' + Object.keys(GUIDES).map(function (k) {
       return '<label><input type="radio" name="guide" value="' + k + '"' + ((c.guide || 'none') === k ? ' checked' : '') + '><span>' + GUIDES[k] + '</span></label>';
     }).join('') + '</div>' +
@@ -790,7 +804,8 @@ function boneText(b) { return b.type + (b.amount ? ' ' + b.amount + (b.unit || '
 function autoItems(c) {
   var out = [];
   if (c.system) out.push('フィクスチャー（' + c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '') + '）予定サイズ＋前後のサイズ', c.system + ' のサージカルキット');
-  if (c.system && c.cap) out.push(CAPS[c.cap] + '（' + c.system + '）');
+  if (c.system && c.cap) out.push(CAPS[c.cap] + '（' + c.system + (c.cap === 'ha' && c.haHeight ? '・高さ ' + c.haHeight : '') + '）');
+  if (c.system) out.push('ドライバー（' + DRIVERS[c.driver || 'both'] + '）');
   if (c.guide === 'out') out.push('サージカルガイド（外注）受け取り・試適済み');
   if (c.guide === 'inhouse') out.push('サージカルガイド（インハウス）製作・試適済み');
   (c.grafts || []).forEach(function (g) {
@@ -805,7 +820,7 @@ function autoItems(c) {
 function implantSummary(c) {
   var parts = [];
   if (c.system) parts.push(c.system + (implantN(c) ? ' ' + implantN(c) + '本' : ''));
-  if (c.cap) parts.push(CAPS[c.cap]);
+  if (c.cap) parts.push(capText(c));
   if (c.guide && c.guide !== 'none') parts.push('ガイド：' + GUIDES[c.guide]);
   if (c.system || c.guide || c.grafts) parts.push('グラフト：' + ((c.grafts || []).length ? c.grafts.map(function (g) { return g === '骨補填材' && (c.bones || []).length ? '骨補填材（' + c.bones.map(boneText).join('、') + '）' : g === 'メンブレン' && (c.membranes || []).length ? 'メンブレン（' + c.membranes.map(memText).join('、') + '）' : g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount) ? '自家骨（' + autoText(c.autobone) + '）' : g; }).join('・') : 'なし'));
   return parts.join('　');
@@ -838,7 +853,7 @@ function viewCase(id) {
 
   var place = c.unitFlow === 'u32' ? 'オペ前ユニット（ユニット3）' : c.unitFlow === 'u2' ? 'オペ室（ユニット2）' : '';
   var sheet = [['日付', fmtDate(c.date) + ' ' + (c.time || '')], ['部位', c.site || '—']];
-  if (c.system) sheet.push(['フィクスチャー', c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '')], ['ヒーリングアバットメント・カバースクリュー', CAPS[c.cap || ''] || '未定'],
+  if (c.system) sheet.push(['フィクスチャー', c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '')], ['ヒーリングアバットメント・カバースクリュー', capText(c) || '未定'], ['ドライバー', DRIVERS[c.driver || 'both']],
     ['ステント', c.guide && c.guide !== 'none' ? GUIDES[c.guide] + '（試適はチェックリストで確認）' : '無']);
   h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 準備物（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
     '<table class="tbl" style="margin:8px 0 4px"><tbody>' + sheet.map(function (r) { return '<tr><td class="muted" style="width:42%">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</tbody></table>' +
@@ -847,8 +862,9 @@ function viewCase(id) {
       var ck = (c.checks || {})[k.key];
       return '<label class="check' + (ck ? ' done' : '') + '"><input type="checkbox" data-a="check" data-id="' + c.id + '" data-i="' + i + '"' + (ck ? ' checked' : '') + '>' +
         '<div class="grow"><div class="txt">' + esc(k.text) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div>' +
-        (k.sec === EXTRA_HEAD.slice(1, -1) ? '<button type="button" class="btn link small" data-a="delitem" data-id="' + c.id + '" data-i="' + i + '" aria-label="削除">削除</button>' : '') + '</label>';
+        '<button type="button" class="btn link small delbtn" data-a="delitem" data-id="' + c.id + '" data-i="' + i + '" aria-label="この器具を外す">削除</button></label>';
     }).join('') +
+    ((c.removed || []).length ? '<div class="row" style="margin-top:6px"><span class="muted grow">リストから外した器具：' + c.removed.length + '件</span><button class="btn sm" data-a="restoreitems" data-id="' + c.id + '">元に戻す</button></div>' : '') +
     '<form data-f="additem" data-id="' + c.id + '" class="row" style="margin-top:8px"><input type="text" name="newItem" placeholder="この症例だけ追加する器具" required><button class="btn sm">追加</button></form></div>';
 
   var risks = pairs(uniq(flat(ts.map(function (t) { return t.risks || []; }))));
@@ -1211,6 +1227,7 @@ function replaceRoute(name, id) {
 }
 
 var ASK = {
+  delitem: function () { return 'この器具をこの症例のリストから外しますか？（あとで「元に戻す」で戻せます）'; },
   logout: function () { return 'この端末からログアウトしますか？（データは消えません）'; },
   delcase: function () { return 'この症例と振り返りを削除しますか？'; },
   delfb: function () { return 'この振り返りを削除しますか？'; },
@@ -1224,6 +1241,7 @@ function askModal(msg) {
     bg.className = 'modal-bg';
     bg.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><p>' + esc(msg) + '</p><div class="row"><button class="btn grow" data-m="no">やめる</button><button class="btn danger grow" data-m="yes">削除する</button></div></div>';
     if (/ログアウト/.test(msg)) bg.querySelector('[data-m=yes]').textContent = 'ログアウト';
+    if (/外しますか/.test(msg)) bg.querySelector('[data-m=yes]').textContent = '外す';
     bg.addEventListener('click', function (e) {
       var m = e.target.getAttribute('data-m');
       if (m || e.target === bg) { e.stopPropagation(); bg.remove(); resolve(m === 'yes'); }
@@ -1256,11 +1274,17 @@ document.addEventListener('click', function (e) {
     var tf = {}; tf[el.getAttribute('data-k')] = hm;
     run('patch', { kind: 'cases', id: id, fields: { times: tf } }).then(function (c2) { upsert('cases', c2); render(); toast(hm + ' を記録しました'); });
   }
+  else if (a === 'restoreitems') {
+    var c7 = clone(byId('cases', id)); c7.removed = [];
+    c7.items = rebuildItems(c7, c7.managed || [], managedItems(c7)); c7.managed = managedItems(c7);
+    run('save', { kind: 'cases', obj: c7 }).then(function (c8) { upsert('cases', c8); render(); toast('元に戻しました'); });
+  }
   else if (a === 'delitem') {
     e.preventDefault();
     var c5 = clone(byId('cases', id)), k5 = keyed(c5.items)[+el.getAttribute('data-i')];
     c5.items.splice(+el.getAttribute('data-i'), 1);
     if (c5.checks && k5) delete c5.checks[k5.key];
+    if (k5 && k5.sec !== EXTRA_HEAD.slice(1, -1)) { c5.removed = c5.removed || []; if (c5.removed.indexOf(k5.key) < 0) c5.removed.push(k5.key); }
     c5.items = mergeSections([c5.items]);
     run('save', { kind: 'cases', obj: c5 }).then(function (c6) { upsert('cases', c6); render(); toast('削除しました'); });
   }
@@ -1313,6 +1337,8 @@ document.addEventListener('change', function (e) {
     var mb = document.getElementById('memBox'); if (mb) mb.style.display = el.checked ? '' : 'none';
   } else if (el.name === 'graft' && el.value === '骨補填材') {
     var bb = document.getElementById('boneBox'); if (bb) bb.style.display = el.checked ? '' : 'none';
+  } else if (el.name === 'cap') {
+    var hb = document.getElementById('haBox'); if (hb) hb.style.display = el.value === 'ha' ? '' : 'none';
   } else if (el.name === 'sedation') {
     var ab = document.getElementById('anesBox'); if (ab) ab.style.display = el.value === 'iv' ? '' : 'none';
     var uf = el.form && el.form.elements.unitFlow;
@@ -1377,6 +1403,8 @@ document.addEventListener('submit', function (e) {
       c.implantCount = c.system ? (cnt > 0 ? cnt : lines(c.implantSizes).length || '') : '';
       c.guide = (f.querySelector('input[name=guide]:checked') || {}).value || 'none';
       c.cap = c.system ? ((f.querySelector('input[name=cap]:checked') || {}).value || '') : '';
+      c.haHeight = c.cap === 'ha' ? v('haHeight') : '';
+      c.driver = c.system ? ((f.querySelector('input[name=driver]:checked') || {}).value || 'both') : '';
       c.grafts = [].slice.call(f.querySelectorAll('input[name=graft]:checked')).map(function (x) { return x.value; });
       c.bones = [];
       if (c.grafts.indexOf('骨補填材') >= 0) {
