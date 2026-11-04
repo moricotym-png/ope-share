@@ -158,6 +158,11 @@ table.tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .who { font-size: 16px; font-weight: 800; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .sechead { margin: 14px 0 2px; padding: 4px 8px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 800; border-radius: 6px; }
 .delbtn { color: var(--muted); font-size: 12px; padding: 4px 2px; flex: none; }
+.qp { background: var(--field); border-radius: 10px; padding: 8px 10px; margin: 8px 0 4px; }
+.qpl { font-size: 12px; font-weight: 700; color: var(--muted); margin: 6px 0 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .demo { background: var(--warn-soft); color: var(--warn); font-size: 12px; text-align: center; padding: 4px; }
 </style>
 </head>
@@ -201,10 +206,11 @@ var CAPS = { '': '未定', ha: 'ヒーリングアバットメント', cs: 'カ�
 var HA_HEIGHTS = ['1mm', '1.5mm', '2mm', '2.5mm', '3mm', '4mm', '5mm', '6mm', '7mm'];
 /* メス刃（院内で使っているもの。増えたらここに追加） */
 var BLADES = ['フェザー No.390C', 'KAI 15c', 'KAI 12', 'フェザー No.350'];
-var HOLDERS = { both: '両方', pen: 'ペン型', angled: '曲（斜め）' };
+var HOLDERS = { pen: 'ペン型', angled: '曲（斜め）', both: '両方' };
 var HOLDER_SHORT = { both: 'ペン型・曲', pen: 'ペン型', angled: '曲（斜め）' };
 var HOLDER_ITEM = { both: 'メスホルダー ペン型×2・曲×2', pen: 'メスホルダー ペン型×2', angled: 'メスホルダー 曲×2' };
-var DRIVERS = { both: 'ショート・ロング両方', short: 'ショート', long: 'ロング' };
+var DRIVERS = { long: 'ロング', short: 'ショート', both: '両方' };
+var DRIVER_ITEM = { long: 'ドライバー（ロング）', short: 'ドライバー（ショート）', both: 'ドライバー（ロング・ショート両方）' };
 function capText(c) { return c.cap ? CAPS[c.cap] + (c.cap === 'ha' && c.haHeight ? '（高さ ' + c.haHeight + '）' : '') : ''; }
 var GUIDES = { none: 'なし', out: '外注', inhouse: 'インハウス' };
 var GRAFTS = ['骨補填材', 'メンブレン', '自家骨', '軟組織移植'];
@@ -282,7 +288,10 @@ function dedupeAcross(lines) {
 function rebuildItems(c, oldM, newM) {
   var oldK = keyed(oldM).map(function (k) { return k.key; }), newK = keyed(newM).map(function (k) { return k.key; });
   var extras = keyed(c.items || []).filter(function (k) {
-    return !k.head && newK.indexOf(k.key) < 0 && (oldK.indexOf(k.key) < 0 || (c.checks || {})[k.key]);
+    if (k.head || newK.indexOf(k.key) >= 0) return false;
+    if (oldK.indexOf(k.key) < 0) return true;           // 手で追加した器具
+    if (k.sec === AUTO_HEAD.slice(1, -1)) return false;  // 選択で決まる項目は、選択を変えたら入れ替える
+    return !!(c.checks || {})[k.key];                    // チェック済みの器具は残す
   });
   var removed = c.removed || [];
   var out = [], kn = keyed(newM);
@@ -856,7 +865,7 @@ function autoItems(c) {
   }
   if (c.system) out.push('フィクスチャー（' + c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '') + '）予定サイズ＋前後のサイズ', c.system + ' のサージカルキット');
   if (c.system && c.cap) out.push(CAPS[c.cap] + '（' + c.system + (c.cap === 'ha' && c.haHeight ? '・高さ ' + c.haHeight : '') + '）');
-  if (c.system) out.push('ドライバー（' + DRIVERS[c.driver || 'both'] + '）');
+  if (c.system) out.push(DRIVER_ITEM[c.driver || 'both']);
   if (c.guide === 'out') out.push('サージカルガイド（外注）受け取り・試適済み');
   if (c.guide === 'inhouse') out.push('サージカルガイド（インハウス）製作・試適済み');
   (c.grafts || []).forEach(function (g) {
@@ -876,6 +885,19 @@ function implantSummary(c) {
   if (c.guide && c.guide !== 'none') parts.push('ガイド：' + GUIDES[c.guide]);
   if (c.system || c.guide || c.grafts) parts.push('グラフト：' + ((c.grafts || []).length ? c.grafts.map(function (g) { return g === '骨補填材' && (c.bones || []).length ? '骨補填材（' + c.bones.map(boneText).join('、') + '）' : g === 'メンブレン' && (c.membranes || []).length ? 'メンブレン（' + c.membranes.map(memText).join('、') + '）' : g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount) ? '自家骨（' + autoText(c.autobone) + '）' : g; }).join('・') : 'なし'));
   return parts.join('　');
+}
+/* 準備物の画面でその場で選べる項目（メス刃・メスホルダー・ドライバー） */
+function chip(a, id, val, on, label) {
+  return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-a="' + a + '" data-id="' + id + '" data-v="' + esc(val) + '" aria-pressed="' + (on ? 'true' : 'false') + '">' + esc(label) + '</button>';
+}
+function quickPick(c) {
+  var h = '<div class="qp"><div class="qpl">メス刃（複数可）</div><div class="chips">' +
+    BLADES.map(function (b) { return chip('qblade', c.id, b, (c.blades || []).indexOf(b) >= 0, b); }).join('') + '</div>' +
+    '<div class="qpl">メスホルダー</div><div class="chips">' +
+    Object.keys(HOLDERS).map(function (k) { return chip('qholder', c.id, k, (c.holder || 'both') === k, HOLDERS[k]); }).join('') + '</div>';
+  if (c.system) h += '<div class="qpl">ドライバー</div><div class="chips">' +
+    Object.keys(DRIVERS).map(function (k) { return chip('qdriver', c.id, k, (c.driver || 'both') === k, DRIVERS[k]); }).join('') + '</div>';
+  return h + '</div>';
 }
 function viewCase(id) {
   var c = byId('cases', id);
@@ -905,10 +927,11 @@ function viewCase(id) {
 
   var place = c.unitFlow === 'u32' ? 'オペ前ユニット（ユニット3）' : c.unitFlow === 'u2' ? 'オペ室（ユニット2）' : '';
   var sheet = [['日付', fmtDate(c.date) + ' ' + (c.time || '')], ['部位', c.site || '—']];
-  if (c.system) sheet.push(['フィクスチャー', c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '')], ['ヒーリングアバットメント・カバースクリュー', capText(c) || '未定'], ['ドライバー', DRIVERS[c.driver || 'both']],
+  if (c.system) sheet.push(['フィクスチャー', c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '')], ['ヒーリングアバットメント・カバースクリュー', capText(c) || '未定'], ['ドライバー', DRIVER_ITEM[c.driver || 'both'].replace(/^ドライバー（|）$/g, '')],
     ['ステント', c.guide && c.guide !== 'none' ? GUIDES[c.guide] + '（試適はチェックリストで確認）' : '無']);
   h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 準備物（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
     '<table class="tbl" style="margin:8px 0 4px"><tbody>' + sheet.map(function (r) { return '<tr><td class="muted" style="width:42%">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</tbody></table>' +
+    quickPick(c) +
     keyed(c.items).map(function (k, i) {
       if (k.head) return '<div class="sechead">' + esc(place && /オペ室 or オペ前ユニット/.test(k.text) ? k.text.replace('オペ室 or オペ前ユニット', place) : k.text) + '</div>';
       var ck = (c.checks || {})[k.key];
@@ -1327,6 +1350,16 @@ document.addEventListener('click', function (e) {
     var d = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     var tf = {}; tf[el.getAttribute('data-k')] = hm;
     run('patch', { kind: 'cases', id: id, fields: { times: tf } }).then(function (c2) { upsert('cases', c2); render(); toast(hm + ' を記録しました'); });
+  }
+  else if (a === 'qblade' || a === 'qholder' || a === 'qdriver') {
+    var cq = clone(byId('cases', id)), val = el.getAttribute('data-v');
+    if (a === 'qblade') { cq.blades = cq.blades || []; var bi = cq.blades.indexOf(val); if (bi >= 0) cq.blades.splice(bi, 1); else cq.blades.push(val); }
+    if (a === 'qholder') cq.holder = val;
+    if (a === 'qdriver') cq.driver = val;
+    var nm = managedItems(cq);
+    cq.items = rebuildItems(cq, cq.managed || [], nm); cq.managed = nm;
+    el.disabled = true;
+    run('save', { kind: 'cases', obj: cq }).then(function (x) { upsert('cases', x); render(); }, function () { render(); });
   }
   else if (a === 'restoreitems') {
     var c7 = clone(byId('cases', id)); c7.removed = [];
