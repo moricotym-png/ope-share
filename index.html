@@ -250,9 +250,33 @@ var AUTO_HEAD = '【この症例のインプラント・材料】';
 /* 見出しのないテンプレートは、処置名を見出しにする */
 function tplLines(t) { var l = t.instruments || []; return l.length && !isHead(l[0]) ? ['【' + t.name + '】'].concat(l) : l; }
 var EXTRA_HEAD = '【この症例で追加】';
+/* インプラントの基本準備物を持つテンプレート */
+var BASE_TPLS = ['t-imp', 't-imm'];
+/* 基本準備物やメス刃の選択と重なる、一般的な行 */
+function isGeneric(l) {
+  return BASE_OPEN.indexOf(l) >= 0 || BASE_CLOSE.indexOf(l) >= 0 || /^メス（/.test(l) || /^メス刃$/.test(l) ||
+    l === '減張切開用のメス' || l === '骨膜剥離子' || l === '生理食塩水' || l === 'トルクレンチ' || /^トルクレンチ（/.test(l) ||
+    l === 'インプラント埋入一式' || l === '骨補填材' || /^骨補填材（/.test(l) || /^メンブレン/.test(l);
+}
 function managedItems(c) {
-  var a = autoItems(c);
-  return mergeSections([a.length ? [AUTO_HEAD].concat(a) : []].concat(tplsOf(c).map(tplLines)));
+  var a = autoItems(c), ids = tplIds(c);
+  var hasBase = ids.some(function (id) { return BASE_TPLS.indexOf(id) >= 0; });
+  var lists = tplsOf(c).map(function (t) {
+    var l = tplLines(t);
+    return hasBase && BASE_TPLS.indexOf(t.id) < 0 ? l.filter(function (x) { return isHead(x) || !isGeneric(x); }) : l;
+  });
+  return dedupeAcross(mergeSections([a.length ? [AUTO_HEAD].concat(a) : []].concat(lists)));
+}
+/* 別の見出しにすでにある同じ器具は省く（抜歯器具セットは別のユニットで使うので残す） */
+function dedupeAcross(lines) {
+  var seen = {}, out = [];
+  keyed(lines).forEach(function (k, i) {
+    if (k.head) { out.push(lines[i]); return; }
+    if (/^抜歯器具/.test(k.sec)) { out.push(lines[i]); return; }
+    if (seen[k.text]) return;
+    seen[k.text] = 1; out.push(lines[i]);
+  });
+  return mergeSections([out]);
 }
 /* テンプレート変更時の作り直し：新しいリスト＋（手で追加した項目・チェック済みで外れた項目） */
 function rebuildItems(c, oldM, newM) {
@@ -300,14 +324,14 @@ var IMPLANT_BASE = [
   'ボーンキュレット 大・小', '持針器（傷つきやすいので単独滅菌袋）',
   '【Drに確認するもの】', '剥離子 Fopセット（カラーのもの）', 'メタルプローブ', 'プラスチックプローブ', '舌圧子', '鋭匙', 'その他ピンセット', '眼科メス 大・小',
   'オプトラゲート', 'サリバエジェクター', 'マイクロ用持針器・ピンセット（単独滅菌）', 'セーフスクレイパー', 'ニエットキャリア',
-  '【予備】', 'バイトブロック', 'ガーゼ', 'アルミホイル', 'メス刃・縫合糸の在庫と使用するものをチェック'
+  '【予備】', 'バイトブロック', 'ガーゼ', 'アルミホイル', '縫合糸の在庫と使用するものをチェック'
 ];
 var EXTRACTION_SET = [
-  '【抜歯器具（オペ室 or オペ前ユニット）】', '排唾管', '外科用バキューム', 'ミラーピンセット', 'メス刃', 'ダイセクター',
+  '【抜歯器具（オペ室 or オペ前ユニット）】', '排唾管', '外科用バキューム', 'ミラーピンセット', 'ダイセクター',
   '剥離子（七浦型）', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（有鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ボーンキュレット 大・小', '鋭匙 大・小',
   'ヘーベル（日大型）', 'ヘーベル（細ブルー）', 'ルートチップ', '残根鉗子', '鉗子', '眼科用メス 大・小', '持針器', 'ハサミ'
 ];
-var SEED_VERSION = 4;
+var SEED_VERSION = 5;
 function T(id, category, name, instruments, cautions, risks) {
   return { id: id, category: category, name: name, instruments: instruments, cautions: cautions,
            risks: risks, steps: '', refs: [], draft: true, seedVersion: SEED_VERSION };
@@ -324,44 +348,42 @@ var SEED = [
     [R_BLEED, R_VVR, R_SWALLOW, '唇頬側の骨壁が薄い・破折した｜骨補填材とメンブレンを用意。待時埋入への変更は院長が判断',
      '初期固定が得られない｜サイズ変更か待時埋入へ。院長が判断']),
   T('t-iml', 'インプラント', '即時負荷',
-    ['【即時負荷で追加するもの】', 'トルクレンチ（埋入トルクの記録）', '仮歯用アバットメント', '仮歯（暫間上部構造）の材料', '印象材 or 口腔内スキャナー', '咬合紙'],
-    ['即時負荷を行う埋入トルクの基準（院長が記入：　　Ncm以上）を事前に全員で共有', '基準に届かなかった場合は通常の治癒期間に切り替える'],
+    ['【即時負荷で追加するもの】', '仮歯用アバットメント', '仮歯（暫間上部構造）の材料', '印象材 or 口腔内スキャナー', '咬合紙'],
+    ['埋入トルクをトルクレンチで確認して記録する', '即時負荷を行う埋入トルクの基準（院長が記入：　　Ncm以上）を事前に全員で共有', '基準に届かなかった場合は通常の治癒期間に切り替える'],
     [R_BLEED, R_VVR, R_SWALLOW, '埋入トルクが基準に届かない｜即時負荷を中止し、カバースクリューかヒーリングアバットメントに切り替え']),
   T('t-gbr', '骨造成', 'GBR（骨誘導再生）',
-    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', '減張切開用のメス', '骨補填材', 'メンブレン（吸収性／非吸収性）',
-      'ピン・タック一式', '骨採取器具（自家骨を使う場合）', '生理食塩水']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['骨膜剥離子', 'ピン・タック一式', '骨採取器具（自家骨を使う場合）', '生理食塩水']).concat(BASE_CLOSE),
     ['緊張のない縫合（一次閉鎖）のための減張を確認', '術後に腫れや内出血が出やすいことを患者さんに説明'],
     [R_BLEED, R_VVR, R_SWALLOW, '減張が足りず閉じられない｜追加の減張切開。縫合糸を多めに準備']),
   T('t-sl', '骨造成', 'サイナスリフト（側方アプローチ）',
-    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', 'ラウンドバー or ピエゾ（開窓用）', '上顎洞粘膜剥離子一式',
-      '骨補填材', 'メンブレン', '生理食塩水']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['骨膜剥離子', 'ラウンドバー or ピエゾ（開窓用）', '上顎洞粘膜剥離子一式', '生理食塩水']).concat(BASE_CLOSE),
     ['CTで上顎洞の隔壁・血管・粘膜の厚みを確認', '術後は鼻を強くかまない、くしゃみは口を開けて、などを患者さんに説明'],
     [R_BLEED, R_VVR, R_SWALLOW, '上顎洞粘膜が破れた｜大きさを確認し、院長がメンブレンでの修復か中止かを判断',
      '開窓部からの出血（血管）｜圧迫止血。止血材を準備']),
   T('t-osfe', '骨造成', 'ソケットリフト',
-    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', 'オステオトーム・マレット or 専用キット', 'インプラント埋入一式', '骨補填材']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['骨膜剥離子', 'オステオトーム・マレット or 専用キット']).concat(BASE_CLOSE),
     ['CTで残っている骨の高さを確認', '槌打の前に、音と振動があることを患者さんに声かけ'],
     [R_BLEED, R_VVR, R_SWALLOW, '上顎洞粘膜が破れた疑い｜すぐ院長に報告。継続か中止かは院長が判断']),
   T('t-reg', '歯周外科・再生療法', '歯周組織再生療法',
-    BASE_OPEN.concat(['メス（#15c・マイクロブレード）', '骨膜剥離子', 'キュレット（グレーシー）', '超音波スケーラー',
+    BASE_OPEN.concat(['骨膜剥離子', 'キュレット（グレーシー）', '超音波スケーラー',
       '再生材料（エムドゲイン・リグロスなど）', '根面処理剤（使う場合）', '骨補填材（必要時）', '細い縫合糸', '拡大鏡・マイクロ器具']).concat(BASE_CLOSE),
     ['再生材料の保管条件と使用期限を確認', '歯間乳頭を温存する切開デザインを事前に共有'],
     [R_BLEED, R_VVR, R_SWALLOW, '歯肉弁が裂けた｜細い縫合糸で修復。院長が判断']),
   T('t-fgg', '軟組織マネジメント', '遊離歯肉移植（FGG）',
-    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', '口蓋からの採取用器具', '止血材', '口蓋保護用の床（ステント）', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['骨膜剥離子', '口蓋からの採取用器具', '止血材', '口蓋保護用の床（ステント）', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
     ['採取する場所と大きさを事前に確認', '移植片は乾かさないよう生理食塩水ガーゼで保管'],
     [R_BLEED, R_VVR, R_SWALLOW, '口蓋の採取部から出血｜圧迫止血・止血材・保護床']),
   T('t-ctg', '軟組織マネジメント', '結合組織移植（CTG）',
-    BASE_OPEN.concat(['メス（#15c）', 'トンネリング用器具', '口蓋からの採取用器具', '止血材', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['トンネリング用器具', '口蓋からの採取用器具', '止血材', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
     ['採取する場所と大きさを事前に確認', '移植片は乾かさないよう生理食塩水ガーゼで保管'],
     [R_BLEED, R_VVR, R_SWALLOW, '口蓋の採取部から出血｜圧迫止血・止血材']),
   T('t-apico', 'エンド外科', '歯根端切除',
-    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', 'マイクロスコープ（動作確認）', '外科用エンジン・バー', '超音波レトロチップ',
+    BASE_OPEN.concat(['骨膜剥離子', 'マイクロスコープ（動作確認）', '外科用エンジン・バー', '超音波レトロチップ',
       'マイクロミラー', '逆根管充填材（MTAなど）', '止血材']).concat(BASE_CLOSE),
     ['CTで根尖と隣の歯・神経・上顎洞との位置関係を確認'],
     [R_BLEED, R_VVR, R_SWALLOW, '視野が取れない（出血）｜止血材と圧迫。吸引をしっかり', R_POWER]),
   T('t-wis', '抜歯', '埋伏智歯の抜歯',
-    BASE_OPEN.concat(['メス（#15）', '骨膜剥離子', '外科用エンジン or タービン・切削用バー', 'ヘーベル・抜歯鉗子', '鋭匙', '骨ヤスリ', '止血材', '生理食塩水']).concat(BASE_CLOSE),
+    BASE_OPEN.concat(['骨膜剥離子', '外科用エンジン or タービン・切削用バー', 'ヘーベル・抜歯鉗子', '鋭匙', '骨ヤスリ', '止血材', '生理食塩水']).concat(BASE_CLOSE),
     ['CTで下歯槽管との位置関係を確認', '術後のしびれ・ドライソケットの可能性を説明済みか確認'],
     [R_BLEED, R_VVR, R_SWALLOW, 'しびれの訴え（下歯槽神経）｜すぐ院長に報告し記録', '歯根が折れた・残った｜院長が除去か経過観察かを判断'])
 ];
@@ -582,7 +604,20 @@ function loadAll() {
       return ex && ex.draft && (ex.seedVersion || 1) < SEED_VERSION;
     });
     return Promise.all(ups.map(function (t) { return run('save', { kind: 'templates', obj: clone(t) }).then(function (x) { upsert('templates', x); }); }));
-  }).then(render);
+  }).then(refreshPlanned).then(render);
+}
+/* 予定中の症例は、テンプレートの変更を準備物に反映する（チェック済み・手で追加した器具・外した器具はそのまま） */
+function refreshPlanned() {
+  var todo = state.data.cases.filter(function (c) {
+    return c.status !== 'done' && tplIds(c).length && JSON.stringify(managedItems(c)) !== JSON.stringify(c.managed || []);
+  });
+  return todo.reduce(function (p, c0) {
+    return p.then(function () {
+      var c = clone(c0), newM = managedItems(c);
+      c.items = rebuildItems(c, c.managed || c.autoItems || [], newM); c.managed = newM;
+      return run('save', { kind: 'cases', obj: c }).then(function (x) { upsert('cases', x); });
+    });
+  }, Promise.resolve()).catch(function () {});
 }
 
 /* ---------- 画面 ---------- */
