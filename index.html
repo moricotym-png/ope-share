@@ -156,6 +156,7 @@ table.tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .sharebar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 12px 0 6px; }
 .sharebar div { height: 100%; background: var(--ok); border-radius: 999px; }
 .who { font-size: 16px; font-weight: 800; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.sechead { margin: 14px 0 2px; padding: 4px 8px; background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 800; border-radius: 6px; }
 .demo { background: var(--warn-soft); color: var(--warn); font-size: 12px; text-align: center; padding: 4px; }
 </style>
 </head>
@@ -195,6 +196,7 @@ var K_PASS = 'ope-pass', K_NAME = 'ope-name', K_AGREE = 'ope-agreed-v1';
 
 /* インプラントシステム（増えたらここに追加） */
 var IMPLANT_SYSTEMS = ['デンツプライシロナ PrimeTaper', 'DIO', 'ノーベルバイオケア NobelActive'];
+var CAPS = { '': '未定', ha: 'ヒーリングアバットメント', cs: 'カバースクリュー' };
 var GUIDES = { none: 'なし', out: '外注', inhouse: 'インハウス' };
 var GRAFTS = ['骨補填材', 'メンブレン', '自家骨', '軟組織移植'];
 var IMPLANT_CATS = ['インプラント', '骨造成'];
@@ -211,7 +213,52 @@ function tplIds(c) { return c.templateIds || (c.templateId ? [c.templateId] : []
 function tplsOf(c) { return tplIds(c).map(function (id) { return byId('templates', id); }).filter(Boolean); }
 function procName(ts) { return ts.map(function (t) { return t.name; }).join(' ＋ '); }
 function hasImplantCat(ts) { return ts.some(function (t) { return IMPLANT_CATS.indexOf(t.category) >= 0; }); }
-function managedItems(c) { return uniq(flat(tplsOf(c).map(function (t) { return t.instruments || []; })).concat(autoItems(c))); }
+/* 器具リストの見出し：「【オペ前日】」のような行。見出しごとにまとめ、同じ見出しの中だけで重複を除く */
+var HEAD_RE = /^【(.+)】$/;
+function isHead(line) { return HEAD_RE.test(line); }
+function keyed(lines) {
+  var sec = '';
+  return (lines || []).map(function (l) {
+    var m = HEAD_RE.exec(l);
+    if (m) { sec = m[1]; return { head: true, text: m[1], key: '' }; }
+    return { head: false, text: l, sec: sec, key: sec ? sec + '::' + l : l };
+  });
+}
+function mergeSections(lists) {
+  var order = [], map = {};
+  lists.forEach(function (lines) {
+    keyed(lines).forEach(function (k) {
+      if (k.head) { if (!map[k.text]) { map[k.text] = []; order.push(k.text); } return; }
+      if (!map[k.sec]) { map[k.sec] = []; order.push(k.sec); }
+      if (map[k.sec].indexOf(k.text) < 0) map[k.sec].push(k.text);
+    });
+  });
+  var out = [];
+  order.forEach(function (sec) { if (!map[sec].length) return; if (sec) out.push('【' + sec + '】'); map[sec].forEach(function (x) { out.push(x); }); });
+  return out;
+}
+var AUTO_HEAD = '【この症例のインプラント・材料】';
+/* 見出しのないテンプレートは、処置名を見出しにする */
+function tplLines(t) { var l = t.instruments || []; return l.length && !isHead(l[0]) ? ['【' + t.name + '】'].concat(l) : l; }
+var EXTRA_HEAD = '【この症例で追加】';
+function managedItems(c) {
+  var a = autoItems(c);
+  return mergeSections([a.length ? [AUTO_HEAD].concat(a) : []].concat(tplsOf(c).map(tplLines)));
+}
+/* テンプレート変更時の作り直し：新しいリスト＋（手で追加した項目・チェック済みで外れた項目） */
+function rebuildItems(c, oldM, newM) {
+  var oldK = keyed(oldM).map(function (k) { return k.key; }), newK = keyed(newM).map(function (k) { return k.key; });
+  var extras = keyed(c.items || []).filter(function (k) {
+    return !k.head && newK.indexOf(k.key) < 0 && (oldK.indexOf(k.key) < 0 || (c.checks || {})[k.key]);
+  });
+  var out = newM.slice(), lastSec = null;
+  extras.forEach(function (k) {
+    var sec = k.sec || EXTRA_HEAD.slice(1, -1);
+    if (sec !== lastSec) { out.push('【' + sec + '】'); lastSec = sec; }
+    out.push(k.text);
+  });
+  return mergeSections([out]);
+}
 
 var CATEGORIES = ['インプラント', '骨造成', '歯周外科・再生療法', '軟組織マネジメント', 'エンド外科', '抜歯', 'その他'];
 
@@ -223,27 +270,49 @@ var R_VVR = '気分不良・顔面蒼白・冷や汗｜処置を止めて水平�
 var R_SWALLOW = '器具や部品を落とした（誤飲・誤嚥）｜患者さんに動かないよう声をかけ、顔を横に向けてもらう。口の中を確認し、すぐ院長に報告。見つからなければ医科での確認を手配';
 var R_POWER = '機器が動かない（モーター・吸引）｜予備の機器に切り替え。オペ前に動作確認しておく';
 
+var IMPLANT_BASE = [
+  '【オペ前日】', '清拭用の布×2', '養生テープ×2', 'パルスオキシメーター（動作チェック）', '血圧計（動作チェック）', 'インプランター（動作チェック）',
+  '【オペ前クリーニング】', '術前口腔内清掃 歯ブラシセット（使用したものは補充しておく）', '口腔内消毒液とガーゼ滅菌綿球（小）×3', '皮膚用消毒液とガーゼ滅菌綿球（大）×3',
+  '消毒液用ビーカー（50ml）×2', '患者さん用シューズカバー・キャップ', 'ディスポーザブルシリンジ10mL', '予備の注射針・カートリッジ（使用しなかったものは2番に戻す）',
+  '【オペ当日：術前消毒】', 'スタッフシューズカバー（人数分）', '手洗いブラシ（人数分）', '手洗い吸水タオル（人数分）', 'スクラビイン（在庫チェック）',
+  '【オペ当日：BOX】', 'ヒビテン液（3mL:150cc）（在庫チェック）', 'フタ付きステンレス容器・ピンセット', 'オペ用マスク付き滅菌ガウン（人数分）',
+  '滅菌グローブ Dr6.5×1・DH6.0（人数分）', '120×150ドレープ×2', '90×90ドレープ 穴無×2', '90×90ドレープ 丸穴テープ無し×1', '90×90ドレープ 涙型穴テープ付き×1',
+  'メーヨスタンドカバー×1', '椅子カバー×1', '目ガーゼ', 'アルミホイル（2枚入り）', '滅菌済みテープ', 'ビーカー 大・中・小', 'サージカルキット（ドリル）BOX（指示棒に糸）',
+  '【オペ当日：インプランター】', 'クリップ（二重パック）大・小', 'インプランターハンドピース（2重パック）', 'イリゲーションチューブ', 'モータースタンド',
+  'ホースカバー×3（サクション・排唾管・インプランター）', '生理食塩水（ゴム栓・開栓の本数を確認）',
+  '【オペ当日：器具】', 'チタンボウル・チタンピンセット', 'ダッペングラス×2', 'シャーレ×2', '開口器', 'ワイヤー鉤', 'チタンプローブ', 'サージチップマイクロ',
+  'ディスポーザブルシリンジ10mL', 'タオルクランプ', 'ガラスシリンジ針', 'ドライバー ショート・ロング', 'トルクレンチ',
+  '【カセッテ】', 'サージチップマイクロアダプター', 'マイクロミラー×2', '排唾管', 'ハサミ（歯肉用）', 'モスキートペアン', '注射筒', 'ピンセット（基本セットのもの）',
+  'ピンセット（まっすぐで長いもの）', '雑メス',
+  '【バット】', '剥離子（七浦型）', 'ダイセクター', 'メスホルダー ペン型×2・曲×2', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ハサミ（糸用）',
+  'ボーンキュレット 大・小', '持針器（傷つきやすいので単独滅菌袋）',
+  '【Drに確認するもの】', '剥離子 Fopセット（カラーのもの）', 'メタルプローブ', 'プラスチックプローブ', '舌圧子', '鋭匙', 'その他ピンセット', '眼科メス 大・小',
+  'オプトラゲート', 'サリバエジェクター', 'マイクロ用持針器・ピンセット（単独滅菌）', 'セーフスクレイパー', 'ニエットキャリア',
+  '【予備】', 'バイトブロック', 'ガーゼ', 'アルミホイル', 'メス刃・縫合糸の在庫と使用するものをチェック'
+];
+var EXTRACTION_SET = [
+  '【抜歯器具（オペ室 or オペ前ユニット）】', '排唾管', '外科用バキューム', 'ミラーピンセット', 'メスホルダー ペン型', 'メスホルダー 曲', 'メス刃', 'ダイセクター',
+  '剥離子（七浦型）', 'アドソンピンセット（無鉤・直）', 'アドソンピンセット（有鉤・直）', 'アドソンピンセット（無鉤・曲）', 'ボーンキュレット 大・小', '鋭匙 大・小',
+  'ヘーベル（日大型）', 'ヘーベル（細ブルー）', 'ルートチップ', '残根鉗子', '鉗子', '眼科用メス 大・小', '持針器', 'ハサミ'
+];
+var SEED_VERSION = 2;
 function T(id, category, name, instruments, cautions, risks) {
   return { id: id, category: category, name: name, instruments: instruments, cautions: cautions,
-           risks: risks, steps: '', refs: [], draft: true };
+           risks: risks, steps: '', refs: [], draft: true, seedVersion: SEED_VERSION };
 }
 var SEED = [
   T('t-imp', 'インプラント', '通常埋入',
-    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', 'インプラントモーター・コントラ（動作確認）', '冷却用生理食塩水', 'デプスゲージ・パラレルピン',
-      'カバースクリュー or ヒーリングアバットメント', 'トルクレンチ']).concat(BASE_CLOSE),
+    IMPLANT_BASE.slice(),
     ['CTで埋入位置・深さと、下歯槽管・オトガイ孔・上顎洞との距離を確認', '使用したインプラント体のサイズとロット番号を記録', '術前に血圧と体調を確認'],
     [R_BLEED, R_VVR, R_SWALLOW, '初期固定が得られない｜サイズ変更・二回法への変更・中止は院長が判断。前後のサイズを準備しておく',
      '深部でしびれの訴え・感触の変化｜すぐ手を止めて院長に報告。術前に確認した深さを全員で共有しておく', R_POWER]),
   T('t-imm', 'インプラント', '抜歯即時埋入',
-    BASE_OPEN.concat(['メス（#15c）', 'ペリオトーム・ヘーベル・抜歯鉗子', '鋭匙（抜歯窩の掻爬）', 'インプラントモーター・コントラ（動作確認）',
-      '冷却用生理食塩水', 'ヒーリングアバットメント or カバースクリュー',
-      'トルクレンチ', '骨補填材・メンブレン（必要時）']).concat(BASE_CLOSE),
+    IMPLANT_BASE.concat(EXTRACTION_SET),
     ['抜歯窩の感染や骨壁の状態によっては即時埋入しない。その場合の代わりの方針（抜歯のみ・待時埋入）を事前に共有', '唇頬側の骨壁を傷めないよう抜歯は慎重に'],
     [R_BLEED, R_VVR, R_SWALLOW, '唇頬側の骨壁が薄い・破折した｜骨補填材とメンブレンを用意。待時埋入への変更は院長が判断',
      '初期固定が得られない｜サイズ変更か待時埋入へ。院長が判断']),
   T('t-iml', 'インプラント', '即時負荷',
-    BASE_OPEN.concat(['インプラント埋入一式（通常埋入のリスト参照）', 'トルクレンチ（埋入トルクの記録）', '仮歯用アバットメント',
-      '仮歯（暫間上部構造）の材料', '印象材 or 口腔内スキャナー', '咬合紙']).concat(BASE_CLOSE),
+    ['【即時負荷で追加するもの】', 'トルクレンチ（埋入トルクの記録）', '仮歯用アバットメント', '仮歯（暫間上部構造）の材料', '印象材 or 口腔内スキャナー', '咬合紙'],
     ['即時負荷を行う埋入トルクの基準（院長が記入：　　Ncm以上）を事前に全員で共有', '基準に届かなかった場合は通常の治癒期間に切り替える'],
     [R_BLEED, R_VVR, R_SWALLOW, '埋入トルクが基準に届かない｜即時負荷を中止し、カバースクリューかヒーリングアバットメントに切り替え']),
   T('t-gbr', '骨造成', 'GBR（骨誘導再生）',
@@ -292,6 +361,11 @@ function sampleDB() {
   var now = new Date().toISOString();
   var tpl = clone(SEED).map(function (t) { t.updatedAt = now; return t; });
   var imp = tpl[0];
+  function sItems(c) {
+    var a = autoItems(c);
+    return mergeSections([a.length ? [AUTO_HEAD].concat(a) : []].concat(c.templateIds.map(function (x) { return tplLines(tpl.find(function (t) { return t.id === x; })); })));
+  }
+  function sCheck(c, n) { c.checks = {}; keyed(c.items).filter(function (k) { return !k.head; }).slice(0, n).forEach(function (k) { c.checks[k.key] = { by: '佐藤', at: now }; }); }
   function mk(id, off, chart, sys, sizes, guide, grafts, bones, tids, done, times, staff) {
     var c = { id: id, status: done ? 'done' : 'planned', templateIds: tids,
       procedureName: tids.map(function (x) { return tpl.find(function (t) { return t.id === x; }).name; }).join(' ＋ '),
@@ -299,9 +373,8 @@ function sampleDB() {
       notes: '', system: sys, implantSizes: sizes, implantCount: sizes.split('\n').length, guide: guide, grafts: grafts,
       bones: bones, checks: {}, confirmedBy: done ? ['院長', '佐藤', '鈴木'] : ['院長'],
       times: times || {}, staffCount: staff || '', createdBy: '院長', createdAt: now, updatedAt: now };
-    var ins = uniq(flat(tids.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; })));
-    c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice();
-    if (done) c.items.forEach(function (i) { c.checks[i] = { by: '佐藤', at: now }; });
+    c.items = sItems(c); c.managed = c.items.slice();
+    if (done) sCheck(c, 999);
     return c;
   }
   var cases = [
@@ -314,20 +387,20 @@ function sampleDB() {
       { enter: '09:00', preclean: '09:02', start: '09:40', end: '10:25' }, 4)
   ];
   cases[0].site = '#36 1本'; cases[0].notes = '嘔吐反射が強め。バキュームは浅めに';
-  cases[0].items.slice(0, 6).forEach(function (i) { cases[0].checks[i] = { by: '佐藤', at: now }; });
+  sCheck(cases[0], 6);
   cases[0].times = {};
   cases[0].unitFlow = 'u32'; cases[2].unitFlow = 'u32';
   cases[1].sedation = 'iv'; cases[1].anesthetist = '〇〇先生'; cases[1].unitFlow = 'u2';
   cases[3].unitFlow = 'u32';
-  [0, 1].forEach(function (i) { var c = cases[i]; var ins = uniq(flat(c.templateIds.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; }))); c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice(); });
-  cases[1].items.forEach(function (x) { cases[1].checks[x] = { by: '佐藤', at: now }; });
-  cases[0].items.slice(0, 6).forEach(function (x) { cases[0].checks[x] = { by: '佐藤', at: now }; });
+  [0, 1].forEach(function (i) { var c = cases[i]; c.items = sItems(c); c.managed = c.items.slice(); });
+  sCheck(cases[1], 999);
+  sCheck(cases[0], 6);
   cases[0].membranes = [{ type: 'サイトランス エラシールド', size: '15×20', count: '1' }];
   cases[2].membranes = [{ type: 'バイオガイド', size: '25×25', count: '1' }];
   cases[2].grafts = ['骨補填材', 'メンブレン', '自家骨']; cases[2].autobone = { site: '下顎枝', amount: '0.3', unit: 'cc' };
-  [0, 2].forEach(function (i) { var c = cases[i]; var ins = uniq(flat(c.templateIds.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; }))); c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice(); });
-  cases[2].items.forEach(function (x) { cases[2].checks[x] = { by: '佐藤', at: now }; });
-  cases[0].items.slice(0, 6).forEach(function (x) { cases[0].checks[x] = { by: '佐藤', at: now }; });
+  [0, 2].forEach(function (i) { var c = cases[i]; c.items = sItems(c); c.managed = c.items.slice(); });
+  sCheck(cases[2], 999);
+  sCheck(cases[0], 6);
   [['60代', '男性'], ['50代', '女性'], ['70代', '女性'], ['40代', '男性']].forEach(function (a, i) { cases[i].age = a[0]; cases[i].sex = a[1]; });
   cases[1].site = '#45 #46 2本'; cases[2].site = '#26 1本'; cases[3].site = '#14 1本';
   var feedback = [
@@ -343,11 +416,11 @@ function sampleDB() {
 }
 function demoLoad() {
   if (demoDB) return demoDB;
-  try { demoDB = JSON.parse(LS.get('ope-demo-db-v6') || 'null'); } catch (e) { demoDB = null; }
+  try { demoDB = JSON.parse(LS.get('ope-demo-db-v7') || 'null'); } catch (e) { demoDB = null; }
   if (!demoDB) demoDB = sampleDB();
   return demoDB;
 }
-function demoSave() { LS.set('ope-demo-db-v6', JSON.stringify(demoDB)); }
+function demoSave() { LS.set('ope-demo-db-v7', JSON.stringify(demoDB)); }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
 function demoApi(pass, op, p) {
@@ -484,6 +557,12 @@ function loadAll() {
     if (!d.templates.length) {
       return run('seed', { templates: SEED }).then(function () { return run('listAll'); }).then(function (d2) { state.data = d2; });
     }
+    // 一度も編集していない叩き台テンプレートは、新しい初期内容に入れ替える
+    var ups = SEED.filter(function (t) {
+      var ex = byId('templates', t.id);
+      return ex && ex.draft && (ex.seedVersion || 1) < SEED_VERSION;
+    });
+    return Promise.all(ups.map(function (t) { return run('save', { kind: 'templates', obj: clone(t) }).then(function (x) { upsert('templates', x); }); }));
   }).then(render);
 }
 
@@ -561,8 +640,8 @@ function viewMe() {
 
 /* --- 症例 --- */
 function caseProgress(c) {
-  var total = (c.items || []).length, done = Object.keys(c.checks || {}).filter(function (k) { return (c.items || []).indexOf(k) >= 0; }).length;
-  return [done, total];
+  var ks = keyed(c.items).filter(function (k) { return !k.head; });
+  return [ks.filter(function (k) { return (c.checks || {})[k.key]; }).length, ks.length];
 }
 var AGES = ['10代', '20代', '30代', '40代', '50代', '60代', '70代', '80代', '90代'];
 var SEXES = ['男性', '女性'];
@@ -647,7 +726,10 @@ function implantFields(c) {
     '<div class="row"><div style="width:110px"><label class="f">本数</label><input type="text" name="implantCount" inputmode="numeric" placeholder="例：2" value="' + esc(c.implantCount || '') + '"></div>' +
     '<div class="grow"><label class="f">サイズ（1行に1本）</label><textarea name="implantSizes" rows="2" placeholder="例：4.0×10">' + esc(c.implantSizes || '') + '</textarea></div></div>' +
     '<div class="muted">統計と在庫管理に使います。術中に変わったら、オペ後に実際の内容に直してください</div>' +
-    '<label class="f">サージカルガイド</label><div class="seg">' + Object.keys(GUIDES).map(function (k) {
+    '<label class="f">ヒーリングアバットメント／カバースクリュー</label><div class="seg">' + Object.keys(CAPS).map(function (k) {
+      return '<label><input type="radio" name="cap" value="' + k + '"' + ((c.cap || '') === k ? ' checked' : '') + '><span>' + CAPS[k] + '</span></label>';
+    }).join('') + '</div>' +
+    '<label class="f">サージカルガイド（ステント）</label><div class="seg">' + Object.keys(GUIDES).map(function (k) {
       return '<label><input type="radio" name="guide" value="' + k + '"' + ((c.guide || 'none') === k ? ' checked' : '') + '><span>' + GUIDES[k] + '</span></label>';
     }).join('') + '</div>' +
     '<label class="f">グラフト（使うものすべて）</label><div class="seg">' + GRAFTS.map(function (x) {
@@ -700,9 +782,10 @@ function memText(m) { return m.type + (m.size ? ' ' + m.size : '') + (m.count ? 
 function boneText(b) { return b.type + (b.amount ? ' ' + b.amount + (b.unit || 'g') : ''); }
 function autoItems(c) {
   var out = [];
-  if (c.system) out.push('インプラント体（' + c.system + '・予定サイズ＋前後のサイズ）', c.system + ' のサージカルキット');
-  if (c.guide === 'out') out.push('サージカルガイド（外注）受け取り・適合確認');
-  if (c.guide === 'inhouse') out.push('サージカルガイド（インハウス）製作・適合確認');
+  if (c.system) out.push('フィクスチャー（' + c.system + (c.implantSizes ? '：' + lines(c.implantSizes).join('、') : '') + '）予定サイズ＋前後のサイズ', c.system + ' のサージカルキット');
+  if (c.system && c.cap) out.push(CAPS[c.cap] + '（' + c.system + '）');
+  if (c.guide === 'out') out.push('サージカルガイド（外注）受け取り・試適済み');
+  if (c.guide === 'inhouse') out.push('サージカルガイド（インハウス）製作・試適済み');
   (c.grafts || []).forEach(function (g) {
     if (g === '骨補填材' && (c.bones || []).length) c.bones.forEach(function (b) { out.push('骨補填材：' + boneText(b) + '（グラフト）'); });
     else if (g === 'メンブレン' && (c.membranes || []).length) c.membranes.forEach(function (m) { out.push('メンブレン：' + memText(m) + '（グラフト）'); });
@@ -715,6 +798,7 @@ function autoItems(c) {
 function implantSummary(c) {
   var parts = [];
   if (c.system) parts.push(c.system + (implantN(c) ? ' ' + implantN(c) + '本' : ''));
+  if (c.cap) parts.push(CAPS[c.cap]);
   if (c.guide && c.guide !== 'none') parts.push('ガイド：' + GUIDES[c.guide]);
   if (c.system || c.guide || c.grafts) parts.push('グラフト：' + ((c.grafts || []).length ? c.grafts.map(function (g) { return g === '骨補填材' && (c.bones || []).length ? '骨補填材（' + c.bones.map(boneText).join('、') + '）' : g === 'メンブレン' && (c.membranes || []).length ? 'メンブレン（' + c.membranes.map(memText).join('、') + '）' : g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount) ? '自家骨（' + autoText(c.autobone) + '）' : g; }).join('・') : 'なし'));
   return parts.join('　');
@@ -746,10 +830,11 @@ function viewCase(id) {
   }
 
   h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 器具・材料（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
-    (c.items || []).map(function (it, i) {
-      var ck = (c.checks || {})[it];
+    keyed(c.items).map(function (k, i) {
+      if (k.head) return '<div class="sechead">' + esc(k.text) + '</div>';
+      var ck = (c.checks || {})[k.key];
       return '<label class="check' + (ck ? ' done' : '') + '"><input type="checkbox" data-a="check" data-id="' + c.id + '" data-i="' + i + '"' + (ck ? ' checked' : '') + '>' +
-        '<div class="grow"><div class="txt">' + esc(it) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div></label>';
+        '<div class="grow"><div class="txt">' + esc(k.text) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div></label>';
     }).join('') +
     '<form data-f="additem" data-id="' + c.id + '" class="row" style="margin-top:8px"><input type="text" name="item" placeholder="この症例だけ追加する器具" required><button class="btn sm">追加</button></form></div>';
 
@@ -896,7 +981,9 @@ function viewTpl(id) {
     '<div class="row" style="margin-top:8px"><button class="btn sm" data-a="go" data-r="tplForm" data-id="' + t.id + '">編集</button></div>' +
     (t.updatedBy ? '<div class="muted" style="margin-top:6px">最終更新：' + esc(t.updatedBy) + '　' + fmtTs(t.updatedAt) + '</div>' : '') + '</div>';
   if (t.steps) h += '<div class="card"><h2>流れ・手順メモ</h2><div class="pre">' + esc(t.steps) + '</div></div>';
-  h += '<div class="card"><h2>🧰 器具・材料</h2><ul class="plain">' + (t.instruments || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  h += '<div class="card"><h2>🧰 器具・材料</h2>' + keyed(t.instruments).map(function (k) {
+    return k.head ? '<div class="sechead">' + esc(k.text) + '</div>' : '<div class="small" style="padding:3px 0 3px 10px">・' + esc(k.text) + '</div>';
+  }).join('') + '</div>';
   if ((t.cautions || []).length) h += '<div class="card"><h2>⚠️ 注意点</h2><ul class="plain">' + t.cautions.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
   var risks = pairs(t.risks);
   if (risks.length) h += '<div class="card"><h2>🚨 不測の事態への対応</h2>' + risks.map(function (r) { return '<details class="risk"><summary>' + esc(r[0]) + '</summary><div>' + esc(r[1]) + '</div></details>'; }).join('') + '</div>';
@@ -916,7 +1003,7 @@ function viewTplForm(id) {
   return '<form class="card" data-f="tpl" data-id="' + (id || '') + '">' +
     '<label class="f">分類</label><select name="category">' + CATEGORIES.map(function (c) { return '<option' + (c === t.category ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
     '<label class="f">処置名</label><input type="text" name="name" required value="' + esc(t.name) + '">' +
-    '<label class="f">器具・材料（1行に1つ）</label><textarea name="instruments" rows="10">' + esc((t.instruments || []).join('\n')) + '</textarea>' +
+    '<label class="f">器具・材料（1行に1つ。【オペ前日】のように【】で囲んだ行は見出し）</label><textarea name="instruments" rows="14">' + esc((t.instruments || []).join('\n')) + '</textarea>' +
     '<label class="f">注意点（1行に1つ）</label><textarea name="cautions" rows="4">' + esc((t.cautions || []).join('\n')) + '</textarea>' +
     '<label class="f">不測の事態への対応（1行に1つ「起きたこと｜対応」）</label><textarea name="risks" rows="6">' + esc((t.risks || []).join('\n')) + '</textarea>' +
     '<label class="f">流れ・手順メモ（自由に）</label><textarea name="steps" rows="4">' + esc(t.steps || '') + '</textarea>' +
@@ -1187,7 +1274,7 @@ document.addEventListener('change', function (e) {
   var el = e.target;
   var a = el.getAttribute('data-a');
   if (a === 'check') {
-    var c = byId('cases', el.getAttribute('data-id')), item = c.items[+el.getAttribute('data-i')];
+    var c = byId('cases', el.getAttribute('data-id')), item = keyed(c.items)[+el.getAttribute('data-i')].key;
     el.disabled = true;
     run('toggleCheck', { caseId: c.id, item: item, value: el.checked, name: state.name })
       .then(function (c2) { upsert('cases', c2); render(); })
@@ -1268,6 +1355,7 @@ document.addEventListener('submit', function (e) {
       var cnt = parseInt(String(v('implantCount')).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }), 10);
       c.implantCount = c.system ? (cnt > 0 ? cnt : lines(c.implantSizes).length || '') : '';
       c.guide = (f.querySelector('input[name=guide]:checked') || {}).value || 'none';
+      c.cap = c.system ? ((f.querySelector('input[name=cap]:checked') || {}).value || '') : '';
       c.grafts = [].slice.call(f.querySelectorAll('input[name=graft]:checked')).map(function (x) { return x.value; });
       c.bones = [];
       if (c.grafts.indexOf('骨補填材') >= 0) {
@@ -1289,15 +1377,15 @@ document.addEventListener('submit', function (e) {
       c.system = ''; c.implantSizes = ''; c.implantCount = ''; c.guide = 'none'; c.grafts = []; c.bones = []; c.membranes = []; c.autobone = null;
     }
     var oldM = c.managed || c.autoItems || [], newM = managedItems(c);
-    c.items = c.items.filter(function (i) { return oldM.indexOf(i) < 0 || newM.indexOf(i) >= 0 || (c.checks || {})[i]; });
-    newM.forEach(function (i) { if (c.items.indexOf(i) < 0) c.items.push(i); });
+    c.items = rebuildItems(c, oldM, newM);
     c.managed = newM; delete c.autoItems;
     busy(run('save', { kind: 'cases', obj: c })).then(function (c2) { upsert('cases', c2); toast('保存しました'); replaceRoute('case', c2.id); });
   }
   else if (kind === 'additem') {
     var c3 = clone(byId('cases', id)), item = v('item');
-    if (c3.items.indexOf(item) >= 0) { toast('すでにあります'); return; }
-    c3.items.push(item);
+    var exK = EXTRA_HEAD.slice(1, -1) + '::' + item;
+    if (keyed(c3.items).some(function (k) { return k.key === exK; })) { toast('すでにあります'); return; }
+    c3.items = mergeSections([c3.items, [EXTRA_HEAD, item]]);
     busy(run('save', { kind: 'cases', obj: c3 })).then(function (c4) { upsert('cases', c4); render(); });
   }
   else if (kind === 'fb') {
