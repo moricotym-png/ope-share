@@ -211,6 +211,8 @@ var BLADES = ['フェザー No.390C', 'KAI 15c', 'KAI 12', 'フェザー No.350'
 var HOLDERS = { pen: 'ペン型', angled: '曲（斜め）', both: '両方' };
 var HOLDER_SHORT = { both: 'ペン型・曲', pen: 'ペン型', angled: '曲（斜め）' };
 /* アドソンピンセット：症例ごとに使うものだけ選ぶ（未選択の症例は従来の無鉤・直／無鉤・曲） */
+/* 患者さんへの対応で配慮すること（性格の評価ではなく、スタッフの対応のしかたとして選ぶ） */
+var CARE = ['不安・緊張が強い', '痛みに敏感', '嘔吐反射が強い', '細かい説明を希望する', '説明がスムーズに伝わる', '待ち時間・言葉づかいに敏感', '会話は少なめが楽'];
 var ADSONS = ['無鉤・直', '無鉤・曲', '有鉤・直', '有鉤・曲'];
 var ADSON_DEFAULT = ['無鉤・直', '無鉤・曲'];
 function adsonsOf(c) { return c.adsons || ADSON_DEFAULT; }
@@ -724,7 +726,7 @@ function caseRow(c) {
   return '<button class="card list-item" data-a="go" data-r="case" data-id="' + c.id + '">' +
     '<div class="row"><div class="grow"><div class="who">' + esc(who(c)) + '</div>' +
     '<div class="title">' + esc(c.procedureName || procName(tplsOf(c))) + '</div>' +
-    '<div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '　' + esc(c.site || '') + (c.system ? '　' + esc(c.system) : '') + (c.sedation === 'iv' ? '　鎮静' : '') + (c.status !== 'done' ? '　確認 ' + (c.confirmedBy || []).length + '人' : '') + '</div></div>' + badge + '</div></button>';
+    '<div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '　' + esc(c.site || '') + (c.system ? '　' + esc(c.system) : '') + (c.sedation === 'iv' ? '　鎮静' : '') + ((c.care || []).length ? '　🤝' + c.care.length : '') + (c.status !== 'done' ? '　確認 ' + (c.confirmedBy || []).length + '人' : '') + '</div></div>' + badge + '</div></button>';
 }
 function viewCases() {
   var cs = state.data.cases.slice();
@@ -780,6 +782,9 @@ function viewCaseForm(id) {
     '<label class="f">術者</label><input type="text" name="surgeon" value="' + esc(roles.surgeon || '') + '">' +
     '<label class="f">アシスト</label><input type="text" name="assist" value="' + esc(roles.assist || '') + '">' +
     '<label class="f">外回り</label><input type="text" name="circ" value="' + esc(roles.circ || '') + '">' +
+    '<label class="f">対応で配慮すること（当てはまるものすべて）</label><div class="seg">' + CARE.map(function (x) {
+      return '<label><input type="checkbox" name="care" value="' + esc(x) + '"' + ((c.care || []).indexOf(x) >= 0 ? ' checked' : '') + '><span>' + esc(x) + '</span></label>';
+    }).join('') + '</div><div class="muted">性格の評価ではなく、スタッフがどう対応するかの目安として選びます</div>' +
     '<label class="f">この症例の注意点</label><textarea name="notes" placeholder="例：抗凝固薬服用中・嘔吐反射が強い・不安が強い">' + esc(c.notes) + '</textarea>' +
     '<div class="hint">手術の準備に必要なことだけ。病歴の詳細は電子カルテで確認します。</div>' +
     '<div style="height:16px"></div><button class="btn primary block">保存</button></form>';
@@ -935,6 +940,9 @@ function viewCase(id) {
     }).join('') + '</div>' : '') + '</div>';
 
   var cautions = uniq(flat(ts.map(function (t) { return t.cautions || []; })));
+  if ((c.care || []).length) {
+    h += '<div class="card"><h2>🤝 対応で配慮すること</h2><div class="chips">' + c.care.map(function (x) { return '<span class="chip on" style="cursor:default">' + esc(x) + '</span>'; }).join('') + '</div></div>';
+  }
   if (c.notes || cautions.length) {
     h += '<div class="card"><h2>⚠️ 注意点</h2>' + (c.notes ? '<div class="notice pre">' + esc(c.notes) + '</div>' : '') +
       (cautions.length ? '<ul class="plain">' + cautions.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
@@ -1513,6 +1521,7 @@ document.addEventListener('submit', function (e) {
     c.templateIds = tids; delete c.templateId; c.procedureName = procName(tplsOf(c)); c.items = c.items || [];
     c.date = v('date'); c.time = v('time'); c.chartNo = chart; c.age = v('age'); c.sex = v('sex'); c.site = v('site'); c.detail = v('detail');
     c.roles = { surgeon: v('surgeon'), assist: v('assist'), circ: v('circ') }; c.notes = v('notes');
+    c.care = [].slice.call(f.querySelectorAll('input[name=care]:checked')).map(function (x) { return x.value; });
     c.blades = [].slice.call(f.querySelectorAll('input[name=blade]:checked')).map(function (x) { return x.value; });
     c.holder = (f.querySelector('input[name=holder]:checked') || {}).value || 'both';
     c.adsons = [].slice.call(f.querySelectorAll('input[name=adson]:checked')).map(function (x) { return x.value; });
