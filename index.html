@@ -511,7 +511,13 @@ function esc(s) {
 function lines(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
 function pairs(arr) { return (arr || []).map(function (x) { var i = x.indexOf('｜'); if (i < 0) i = x.indexOf('|'); return i < 0 ? [x, ''] : [x.slice(0, i).trim(), x.slice(i + 1).trim()]; }); }
 function byId(kind, id) { return (state.data[kind] || []).find(function (x) { return x.id === id; }); }
+function cleanCase(c) {
+  if (c && c.items) c.items = c.items.filter(function (l) { return l && l !== 'undefined'; });
+  if (c && c.items) c.items = mergeSections([c.items]);
+  return c;
+}
 function upsert(kind, obj) {
+  if (kind === 'cases') cleanCase(obj);
   var arr = state.data[kind], i = arr.findIndex(function (x) { return x.id === obj.id; });
   if (i < 0) arr.push(obj); else arr[i] = obj;
 }
@@ -554,6 +560,7 @@ function run(op, payload) {
 function loadAll() {
   return run('listAll').then(function (d) {
     state.data = d;
+    (d.cases || []).forEach(cleanCase);
     if (!d.templates.length) {
       return run('seed', { templates: SEED }).then(function () { return run('listAll'); }).then(function (d2) { state.data = d2; });
     }
@@ -839,9 +846,10 @@ function viewCase(id) {
       if (k.head) return '<div class="sechead">' + esc(place && /オペ室 or オペ前ユニット/.test(k.text) ? k.text.replace('オペ室 or オペ前ユニット', place) : k.text) + '</div>';
       var ck = (c.checks || {})[k.key];
       return '<label class="check' + (ck ? ' done' : '') + '"><input type="checkbox" data-a="check" data-id="' + c.id + '" data-i="' + i + '"' + (ck ? ' checked' : '') + '>' +
-        '<div class="grow"><div class="txt">' + esc(k.text) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div></label>';
+        '<div class="grow"><div class="txt">' + esc(k.text) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div>' +
+        (k.sec === EXTRA_HEAD.slice(1, -1) ? '<button type="button" class="btn link small" data-a="delitem" data-id="' + c.id + '" data-i="' + i + '" aria-label="削除">削除</button>' : '') + '</label>';
     }).join('') +
-    '<form data-f="additem" data-id="' + c.id + '" class="row" style="margin-top:8px"><input type="text" name="item" placeholder="この症例だけ追加する器具" required><button class="btn sm">追加</button></form></div>';
+    '<form data-f="additem" data-id="' + c.id + '" class="row" style="margin-top:8px"><input type="text" name="newItem" placeholder="この症例だけ追加する器具" required><button class="btn sm">追加</button></form></div>';
 
   var risks = pairs(uniq(flat(ts.map(function (t) { return t.risks || []; }))));
   if (risks.length) {
@@ -1248,6 +1256,14 @@ document.addEventListener('click', function (e) {
     var tf = {}; tf[el.getAttribute('data-k')] = hm;
     run('patch', { kind: 'cases', id: id, fields: { times: tf } }).then(function (c2) { upsert('cases', c2); render(); toast(hm + ' を記録しました'); });
   }
+  else if (a === 'delitem') {
+    e.preventDefault();
+    var c5 = clone(byId('cases', id)), k5 = keyed(c5.items)[+el.getAttribute('data-i')];
+    c5.items.splice(+el.getAttribute('data-i'), 1);
+    if (c5.checks && k5) delete c5.checks[k5.key];
+    c5.items = mergeSections([c5.items]);
+    run('save', { kind: 'cases', obj: c5 }).then(function (c6) { upsert('cases', c6); render(); toast('削除しました'); });
+  }
   else if (a === 'finish') {
     run('patch', { kind: 'cases', id: id, fields: { status: 'done' } }).then(function (c2) { upsert('cases', c2); render(); });
   }
@@ -1321,7 +1337,7 @@ document.addEventListener('submit', function (e) {
   if (!kind) return;
   e.preventDefault();
   if (state.busy) return;
-  var v = function (n) { var x = f.elements[n]; return x ? String(x.value).trim() : ''; };
+  var v = function (n) { var x = f.elements.namedItem(n); return x && x.value != null ? String(x.value).trim() : ''; };
   var id = f.getAttribute('data-id');
   var btn = f.querySelector('button:last-of-type');
   function busy(p) {
@@ -1387,7 +1403,8 @@ document.addEventListener('submit', function (e) {
     busy(run('save', { kind: 'cases', obj: c })).then(function (c2) { upsert('cases', c2); toast('保存しました'); replaceRoute('case', c2.id); });
   }
   else if (kind === 'additem') {
-    var c3 = clone(byId('cases', id)), item = v('item');
+    var c3 = clone(byId('cases', id)), item = v('newItem');
+    if (!item) return;
     var exK = EXTRA_HEAD.slice(1, -1) + '::' + item;
     if (keyed(c3.items).some(function (k) { return k.key === exK; })) { toast('すでにあります'); return; }
     c3.items = mergeSections([c3.items, [EXTRA_HEAD, item]]);
