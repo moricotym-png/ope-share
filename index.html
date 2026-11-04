@@ -86,7 +86,7 @@ nav.tabs button.on { color: var(--accent); }
 .btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
 .btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
 .btn.block { width: 100%; }
-.btn.sm { padding: 6px 10px; font-size: 13px; }
+.btn.sm { padding: 6px 10px; font-size: 13px; white-space: nowrap; flex: none; }
 .btn.link { border: 0; background: none; color: var(--accent); padding: 6px 4px; }
 label.f { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 12px 0 4px; }
 input[type=text], input[type=date], input[type=time], input[type=password], select, textarea {
@@ -163,6 +163,8 @@ table.tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: t
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fbc { margin-top: 6px; padding-left: 10px; border-left: 3px solid var(--line); }
+.fbcm { padding: 4px 0; }
 .demo { background: var(--warn-soft); color: var(--warn); font-size: 12px; text-align: center; padding: 4px; }
 </style>
 </head>
@@ -1029,7 +1031,19 @@ function fbView(f, withCase) {
     (f.hiyari ? '<div class="hiyari"><div class="k">ヒヤリハット</div><div class="pre">' + esc(f.hiyari) + '</div></div>' : '') +
     (f.improve ? '<div class="improve"><div class="k">次への改善案</div><div class="pre">' + esc(f.improve) + '</div></div>' : '') +
     '<div class="row"><span class="muted grow">' + fmtTs(f.createdAt) + '</span>' +
-    (f.author === state.name ? '<button class="btn link small" data-a="delfb" data-id="' + f.id + '">削除</button>' : '') + '</div></div>';
+    (f.author === state.name ? '<button class="btn link small" data-a="delfb" data-id="' + f.id + '">削除</button>' : '') + '</div>' +
+    fbComments(f) + '</div>';
+}
+/* 振り返りへのコメント（comments に fbId を付けて保存） */
+function fbComments(f) {
+  var cs = state.data.comments.filter(function (m) { return m.fbId === f.id; }).sort(function (a, b) { return a.createdAt.localeCompare(b.createdAt); });
+  return '<div class="fbc">' + cs.map(function (m) {
+    return '<div class="fbcm"><div class="row"><b class="small grow">' + esc(m.author) + '</b><span class="muted">' + fmtTs(m.createdAt) + '</span>' +
+      (m.author === state.name ? '<button class="btn link small" data-a="delcomment" data-id="' + m.id + '">削除</button>' : '') + '</div>' +
+      '<div class="pre small">' + esc(m.body) + '</div></div>';
+  }).join('') +
+  '<form data-f="fbcomment" data-id="' + f.id + '" class="row" style="margin-top:6px"><input type="text" name="body" placeholder="コメントする" required>' +
+  '<button class="btn sm">送信</button></form></div>';
 }
 function fbForm(caseId) {
   return '<form class="card" data-f="fb" data-id="' + caseId + '"><h2>振り返りを書く</h2>' +
@@ -1394,12 +1408,17 @@ document.addEventListener('click', function (e) {
   }
   else if (a === 'delcase') {
     var fbs = state.data.feedback.filter(function (f) { return f.caseId === id; });
-    Promise.all(fbs.map(function (f) { return run('remove', { kind: 'feedback', id: f.id }); }))
+    var fbIds = fbs.map(function (f) { return f.id; });
+    var fbcs = state.data.comments.filter(function (m) { return fbIds.indexOf(m.fbId) >= 0; });
+    Promise.all(fbcs.map(function (m) { return run('remove', { kind: 'comments', id: m.id }); }).concat(fbs.map(function (f) { return run('remove', { kind: 'feedback', id: f.id }); })))
       .then(function () { return run('remove', { kind: 'cases', id: id }); })
       .then(function () { fbs.forEach(function (f) { drop('feedback', f.id); }); drop('cases', id); back(); toast('削除しました'); });
   }
   else if (a === 'delfb') {
-    run('remove', { kind: 'feedback', id: id }).then(function () { drop('feedback', id); render(); });
+    var fcs = state.data.comments.filter(function (m) { return m.fbId === id; });
+    Promise.all(fcs.map(function (m) { return run('remove', { kind: 'comments', id: m.id }); }))
+      .then(function () { return run('remove', { kind: 'feedback', id: id }); })
+      .then(function () { fcs.forEach(function (m) { drop('comments', m.id); }); drop('feedback', id); render(); });
   }
   else if (a === 'deltpl') {
     var used = state.data.cases.some(function (c) { return tplIds(c).indexOf(id) >= 0; });
@@ -1560,6 +1579,11 @@ document.addEventListener('submit', function (e) {
   else if (kind === 'post') {
     var p = { id: uid(), author: state.name, body: v('body'), createdAt: new Date().toISOString() };
     busy(run('save', { kind: 'posts', obj: p })).then(function (x) { upsert('posts', x); replaceRoute('post', x.id); });
+  }
+  else if (kind === 'fbcomment') {
+    var fc = { id: uid(), fbId: id, author: state.name, body: v('body'), createdAt: new Date().toISOString() };
+    if (!fc.body) return;
+    busy(run('save', { kind: 'comments', obj: fc })).then(function (x) { upsert('comments', x); render(); toast('コメントしました'); });
   }
   else if (kind === 'comment') {
     var cm = { id: uid(), postId: id, author: state.name, body: v('body'), createdAt: new Date().toISOString() };
