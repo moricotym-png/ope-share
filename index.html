@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>オペ共有</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --field: #f5f6f8;
+  color-scheme: light;
+  --card: #ffffff;
+  --text: #1d2330;
+  --muted: #667085;
+  --line: #e3e6ec;
+  --accent: #1f6feb;
+  --accent-soft: #e8f0fe;
+  --ok: #1a7f4b;
+  --ok-soft: #e3f4ea;
+  --warn: #b54708;
+  --warn-soft: #fef0e1;
+  --danger: #c0262d;
+  --danger-soft: #fde8e8;
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-size: 16px; line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--card); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px; min-height: 52px;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header h1 { font-size: 17px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header .me { font-size: 13px; color: var(--muted); }
+main { max-width: 720px; margin: 0 auto; padding-block: 12px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--card); }
+.modal-bg { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal { background: var(--card); color: var(--text); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 360px; }
+.modal p { margin: 0 0 14px; font-weight: 600; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+nav.tabs {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
+  background: var(--card); border-top: 1px solid var(--line);
+  display: flex; padding-bottom: env(safe-area-inset-bottom);
+}
+nav.tabs button {
+  flex: 1; border: 0; background: none; color: var(--muted);
+  padding: 10px 0 12px; font-size: 12px; font-weight: 600;
+}
+nav.tabs button .ico { display: block; font-size: 20px; line-height: 1.2; }
+nav.tabs button.on { color: var(--accent); }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px;
+}
+.card h2 { font-size: 15px; margin: 0 0 8px; }
+.card h3 { font-size: 14px; margin: 12px 0 6px; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; }
+.row.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--muted); font-size: 13px; }
+.small { font-size: 13px; }
+.list-item { display: block; width: 100%; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.list-item .title { font-weight: 700; }
+.badge {
+  display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+}
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.gray { background: var(--line); color: var(--muted); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--card); color: var(--text);
+  border-radius: 10px; padding: 10px 14px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn.block { width: 100%; }
+.btn.sm { padding: 6px 10px; font-size: 13px; }
+.btn.link { border: 0; background: none; color: var(--accent); padding: 6px 4px; }
+label.f { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 12px 0 4px; }
+input[type=text], input[type=date], input[type=time], input[type=password], select, textarea {
+  width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--field);
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+textarea { min-height: 84px; resize: vertical; }
+.hint { font-size: 12px; color: var(--warn); margin-top: 4px; }
+.check {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--line);
+}
+.check:last-child { border-bottom: 0; }
+.check input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--ok); }
+.check .who { font-size: 12px; color: var(--muted); }
+.check.done .txt { color: var(--muted); text-decoration: line-through; }
+details.risk { border: 1px solid var(--line); border-radius: 10px; margin: 6px 0; background: var(--field); }
+details.risk summary { padding: 10px 12px; font-weight: 700; cursor: pointer; }
+details.risk div { padding: 0 12px 12px; }
+ul.plain { margin: 4px 0; padding-left: 20px; }
+ul.plain li { margin: 3px 0; }
+.notice { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+.notice.info { background: var(--accent-soft); color: var(--accent); }
+.fb { border-top: 1px solid var(--line); padding: 10px 0; }
+.fb:first-child { border-top: 0; }
+.fb .k { font-size: 12px; font-weight: 700; color: var(--muted); }
+.fb .improve { background: var(--ok-soft); border-radius: 8px; padding: 6px 10px; margin-top: 6px; }
+.fb .hiyari { background: var(--warn-soft); border-radius: 8px; padding: 6px 10px; margin-top: 6px; }
+.pre { white-space: pre-wrap; word-break: break-word; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg label { flex: 1; min-width: 90px; }
+.seg input { display: none; }
+.seg span {
+  display: block; text-align: center; padding: 9px 6px; border: 1px solid var(--line); border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer; background: var(--field);
+}
+.seg input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.center { text-align: center; }
+.gate { max-width: 420px; width: calc(100% - 32px); margin: 40px auto; }
+.gate h1 { font-size: 22px; text-align: center; }
+ol.rules { padding-left: 22px; }
+ol.rules li { margin: 8px 0; }
+.toast {
+  position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 20;
+  background: var(--text); color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.toast.show { opacity: .92; }
+.spinner { text-align: center; padding: 40px 0; color: var(--muted); }
+.sectionhead { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 8px; }
+.sectionhead h2 { font-size: 15px; margin: 0; color: var(--muted); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.tile .tv { font-size: 26px; font-weight: 800; line-height: 1.2; }
+.tile .tv small { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+.tile .tl { font-size: 12px; color: var(--muted); }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 18px; border-bottom: 1px solid var(--line); }
+.bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.bar .bf { width: 70%; max-width: 22px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 0; }
+.bar .bv { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.bar .bl { position: absolute; bottom: -20px; font-size: 11px; color: var(--muted); }
+.bars + * { margin-top: 24px; }
+.card .bars { margin-bottom: 22px; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.tbl th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); padding: 6px 4px; }
+table.tbl td { border-bottom: 1px solid var(--line); padding: 8px 4px; }
+table.tbl .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sharebar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 12px 0 6px; }
+.sharebar div { height: 100%; background: var(--ok); border-radius: 999px; }
+.who { font-size: 16px; font-weight: 800; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.demo { background: var(--warn-soft); color: var(--warn); font-size: 12px; text-align: center; padding: 4px; }
+</style>
+</head>
+<body>
+<div id="demo"></div>
+<div id="app"><div class="spinner">読み込み中…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   オペ共有アプリ — 画面側
+   Apps Script 上では google.script.run でスプレッドシートに保存。
+   それ以外（ファイルを直接開いた場合）はデモモードで端末内に保存。
+   ========================================================= */
+
+var IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+var LS0 = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+/* GitHub Pages 版：LINEのリンク末尾「#k=…」に入っている接続先（Apps ScriptのデプロイID）を端末に覚える */
+var API_ID = (function () {
+  var m = /[#&]k=([A-Za-z0-9_\-]{20,})/.exec(location.hash || '');
+  if (m) {
+    LS0.set('ope-api', m[1]);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    return m[1];
+  }
+  return IS_GAS ? '' : (LS0.get('ope-api') || '');
+})();
+var IS_API = !IS_GAS && !!API_ID;
+var IS_PAGES = /github\.io$/.test(location.hostname);
+var IS_DEMO = !IS_GAS && !IS_API && !IS_PAGES;
+var LS = {
+  get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+var K_PASS = 'ope-pass', K_NAME = 'ope-name', K_AGREE = 'ope-agreed-v1';
+
+/* インプラントシステム（増えたらここに追加） */
+var IMPLANT_SYSTEMS = ['デンツプライシロナ PrimeTaper', 'DIO', 'ノーベルバイオケア NobelActive'];
+var GUIDES = { none: 'なし', out: '外注', inhouse: 'インハウス' };
+var GRAFTS = ['骨補填材', 'メンブレン', '自家骨', '軟組織移植'];
+var IMPLANT_CATS = ['インプラント', '骨造成'];
+/* 骨補填材の候補（入力欄の候補として出る。ここにない物も手入力できる） */
+var BONE_MATERIALS = ['サイトランス グラニュール', 'Inter-Oss'];
+var BONE_UNITS = ['g', 'cc'];
+/* メンブレンの候補 */
+var AUTO_SITES = ['下顎枝', 'オトガイ部', '上顎結節', '埋入窩（ドリリング時の骨）', '術野周囲'];
+var MEMBRANES = ['サイトプラスト', 'バイオガイド', 'サイトランス エラシールド'];
+
+function uniq(a) { var o = []; a.forEach(function (x) { if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
+function flat(a) { return [].concat.apply([], a); }
+function tplIds(c) { return c.templateIds || (c.templateId ? [c.templateId] : []); }
+function tplsOf(c) { return tplIds(c).map(function (id) { return byId('templates', id); }).filter(Boolean); }
+function procName(ts) { return ts.map(function (t) { return t.name; }).join(' ＋ '); }
+function hasImplantCat(ts) { return ts.some(function (t) { return IMPLANT_CATS.indexOf(t.category) >= 0; }); }
+function managedItems(c) { return uniq(flat(tplsOf(c).map(function (t) { return t.instruments || []; })).concat(autoItems(c))); }
+
+var CATEGORIES = ['インプラント', '骨造成', '歯周外科・再生療法', '軟組織マネジメント', 'エンド外科', '抜歯', 'その他'];
+
+/* ---------- 初期テンプレート（叩き台。医院で確認・修正して使う） ---------- */
+var BASE_OPEN = ['基本セット（ミラー・探針・ピンセット）', '浸潤麻酔セット', '滅菌ドレープ・術衣・滅菌グローブ', '外科用吸引チップ'];
+var BASE_CLOSE = ['縫合糸・持針器・剪刀', '滅菌ガーゼ', '術前資料（CT・X線・治療計画）'];
+var R_BLEED = '出血が止まりにくい｜圧迫止血を続け、止血材と縫合の準備。院長の指示を待つ';
+var R_VVR = '気分不良・顔面蒼白・冷や汗｜処置を止めて水平位に。血圧・脈拍を測り院長に報告。意識がおかしいときは119番と院内マニュアルの対応';
+var R_SWALLOW = '器具や部品を落とした（誤飲・誤嚥）｜患者さんに動かないよう声をかけ、顔を横に向けてもらう。口の中を確認し、すぐ院長に報告。見つからなければ医科での確認を手配';
+var R_POWER = '機器が動かない（モーター・吸引）｜予備の機器に切り替え。オペ前に動作確認しておく';
+
+function T(id, category, name, instruments, cautions, risks) {
+  return { id: id, category: category, name: name, instruments: instruments, cautions: cautions,
+           risks: risks, steps: '', refs: [], draft: true };
+}
+var SEED = [
+  T('t-imp', 'インプラント', '通常埋入',
+    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', 'インプラントモーター・コントラ（動作確認）', '冷却用生理食塩水', 'デプスゲージ・パラレルピン',
+      'カバースクリュー or ヒーリングアバットメント', 'トルクレンチ']).concat(BASE_CLOSE),
+    ['CTで埋入位置・深さと、下歯槽管・オトガイ孔・上顎洞との距離を確認', '使用したインプラント体のサイズとロット番号を記録', '術前に血圧と体調を確認'],
+    [R_BLEED, R_VVR, R_SWALLOW, '初期固定が得られない｜サイズ変更・二回法への変更・中止は院長が判断。前後のサイズを準備しておく',
+     '深部でしびれの訴え・感触の変化｜すぐ手を止めて院長に報告。術前に確認した深さを全員で共有しておく', R_POWER]),
+  T('t-imm', 'インプラント', '抜歯即時埋入',
+    BASE_OPEN.concat(['メス（#15c）', 'ペリオトーム・ヘーベル・抜歯鉗子', '鋭匙（抜歯窩の掻爬）', 'インプラントモーター・コントラ（動作確認）',
+      '冷却用生理食塩水', 'ヒーリングアバットメント or カバースクリュー',
+      'トルクレンチ', '骨補填材・メンブレン（必要時）']).concat(BASE_CLOSE),
+    ['抜歯窩の感染や骨壁の状態によっては即時埋入しない。その場合の代わりの方針（抜歯のみ・待時埋入）を事前に共有', '唇頬側の骨壁を傷めないよう抜歯は慎重に'],
+    [R_BLEED, R_VVR, R_SWALLOW, '唇頬側の骨壁が薄い・破折した｜骨補填材とメンブレンを用意。待時埋入への変更は院長が判断',
+     '初期固定が得られない｜サイズ変更か待時埋入へ。院長が判断']),
+  T('t-iml', 'インプラント', '即時負荷',
+    BASE_OPEN.concat(['インプラント埋入一式（通常埋入のリスト参照）', 'トルクレンチ（埋入トルクの記録）', '仮歯用アバットメント',
+      '仮歯（暫間上部構造）の材料', '印象材 or 口腔内スキャナー', '咬合紙']).concat(BASE_CLOSE),
+    ['即時負荷を行う埋入トルクの基準（院長が記入：　　Ncm以上）を事前に全員で共有', '基準に届かなかった場合は通常の治癒期間に切り替える'],
+    [R_BLEED, R_VVR, R_SWALLOW, '埋入トルクが基準に届かない｜即時負荷を中止し、カバースクリューかヒーリングアバットメントに切り替え']),
+  T('t-gbr', '骨造成', 'GBR（骨誘導再生）',
+    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', '減張切開用のメス', '骨補填材', 'メンブレン（吸収性／非吸収性）',
+      'ピン・タック一式', '骨採取器具（自家骨を使う場合）', '生理食塩水']).concat(BASE_CLOSE),
+    ['緊張のない縫合（一次閉鎖）のための減張を確認', '術後に腫れや内出血が出やすいことを患者さんに説明'],
+    [R_BLEED, R_VVR, R_SWALLOW, '減張が足りず閉じられない｜追加の減張切開。縫合糸を多めに準備']),
+  T('t-sl', '骨造成', 'サイナスリフト（側方アプローチ）',
+    BASE_OPEN.concat(['メス（#15・#15c）', '骨膜剥離子', 'ラウンドバー or ピエゾ（開窓用）', '上顎洞粘膜剥離子一式',
+      '骨補填材', 'メンブレン', '生理食塩水']).concat(BASE_CLOSE),
+    ['CTで上顎洞の隔壁・血管・粘膜の厚みを確認', '術後は鼻を強くかまない、くしゃみは口を開けて、などを患者さんに説明'],
+    [R_BLEED, R_VVR, R_SWALLOW, '上顎洞粘膜が破れた｜大きさを確認し、院長がメンブレンでの修復か中止かを判断',
+     '開窓部からの出血（血管）｜圧迫止血。止血材を準備']),
+  T('t-osfe', '骨造成', 'ソケットリフト',
+    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', 'オステオトーム・マレット or 専用キット', 'インプラント埋入一式', '骨補填材']).concat(BASE_CLOSE),
+    ['CTで残っている骨の高さを確認', '槌打の前に、音と振動があることを患者さんに声かけ'],
+    [R_BLEED, R_VVR, R_SWALLOW, '上顎洞粘膜が破れた疑い｜すぐ院長に報告。継続か中止かは院長が判断']),
+  T('t-reg', '歯周外科・再生療法', '歯周組織再生療法',
+    BASE_OPEN.concat(['メス（#15c・マイクロブレード）', '骨膜剥離子', 'キュレット（グレーシー）', '超音波スケーラー',
+      '再生材料（エムドゲイン・リグロスなど）', '根面処理剤（使う場合）', '骨補填材（必要時）', '細い縫合糸', '拡大鏡・マイクロ器具']).concat(BASE_CLOSE),
+    ['再生材料の保管条件と使用期限を確認', '歯間乳頭を温存する切開デザインを事前に共有'],
+    [R_BLEED, R_VVR, R_SWALLOW, '歯肉弁が裂けた｜細い縫合糸で修復。院長が判断']),
+  T('t-fgg', '軟組織マネジメント', '遊離歯肉移植（FGG）',
+    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', '口蓋からの採取用器具', '止血材', '口蓋保護用の床（ステント）', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
+    ['採取する場所と大きさを事前に確認', '移植片は乾かさないよう生理食塩水ガーゼで保管'],
+    [R_BLEED, R_VVR, R_SWALLOW, '口蓋の採取部から出血｜圧迫止血・止血材・保護床']),
+  T('t-ctg', '軟組織マネジメント', '結合組織移植（CTG）',
+    BASE_OPEN.concat(['メス（#15c）', 'トンネリング用器具', '口蓋からの採取用器具', '止血材', '生理食塩水（移植片の保管）', '細い縫合糸']).concat(BASE_CLOSE),
+    ['採取する場所と大きさを事前に確認', '移植片は乾かさないよう生理食塩水ガーゼで保管'],
+    [R_BLEED, R_VVR, R_SWALLOW, '口蓋の採取部から出血｜圧迫止血・止血材']),
+  T('t-apico', 'エンド外科', '歯根端切除',
+    BASE_OPEN.concat(['メス（#15c）', '骨膜剥離子', 'マイクロスコープ（動作確認）', '外科用エンジン・バー', '超音波レトロチップ',
+      'マイクロミラー', '逆根管充填材（MTAなど）', '止血材']).concat(BASE_CLOSE),
+    ['CTで根尖と隣の歯・神経・上顎洞との位置関係を確認'],
+    [R_BLEED, R_VVR, R_SWALLOW, '視野が取れない（出血）｜止血材と圧迫。吸引をしっかり', R_POWER]),
+  T('t-wis', '抜歯', '埋伏智歯の抜歯',
+    BASE_OPEN.concat(['メス（#15）', '骨膜剥離子', '外科用エンジン or タービン・切削用バー', 'ヘーベル・抜歯鉗子', '鋭匙', '骨ヤスリ', '止血材', '生理食塩水']).concat(BASE_CLOSE),
+    ['CTで下歯槽管との位置関係を確認', '術後のしびれ・ドライソケットの可能性を説明済みか確認'],
+    [R_BLEED, R_VVR, R_SWALLOW, 'しびれの訴え（下歯槽神経）｜すぐ院長に報告し記録', '歯根が折れた・残った｜院長が除去か経過観察かを判断'])
+];
+
+/* ---------- データ層 ---------- */
+var demoDB = null;
+function sampleDB() {
+  function d(off) { var x = new Date(); x.setDate(x.getDate() + off); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); }
+  var now = new Date().toISOString();
+  var tpl = clone(SEED).map(function (t) { t.updatedAt = now; return t; });
+  var imp = tpl[0];
+  function mk(id, off, chart, sys, sizes, guide, grafts, bones, tids, done, times, staff) {
+    var c = { id: id, status: done ? 'done' : 'planned', templateIds: tids,
+      procedureName: tids.map(function (x) { return tpl.find(function (t) { return t.id === x; }).name; }).join(' ＋ '),
+      date: d(off), time: '10:00', chartNo: chart, site: '', detail: '', roles: { surgeon: '院長', assist: '佐藤', circ: '鈴木' },
+      notes: '', system: sys, implantSizes: sizes, implantCount: sizes.split('\n').length, guide: guide, grafts: grafts,
+      bones: bones, checks: {}, confirmedBy: done ? ['院長', '佐藤', '鈴木'] : ['院長'],
+      times: times || {}, staffCount: staff || '', createdBy: '院長', createdAt: now, updatedAt: now };
+    var ins = uniq(flat(tids.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; })));
+    c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice();
+    if (done) c.items.forEach(function (i) { c.checks[i] = { by: '佐藤', at: now }; });
+    return c;
+  }
+  var cases = [
+    mk('s1', 1, '1024', 'DIO', '4.0×10', 'out', ['骨補填材', 'メンブレン'], [{ type: 'サイトランス グラニュール', amount: '0.25', unit: 'g' }], ['t-imm', 't-gbr'], false),
+    mk('s2', -12, '0871', 'ノーベルバイオケア NobelActive', '4.3×11.5\n4.3×10', 'inhouse', [], [], ['t-imp'], true,
+      { enter: '09:30', preclean: '09:38', start: '10:10', end: '11:00' }, 3),
+    mk('s3', -40, '0655', 'DIO', '4.5×8', 'none', ['骨補填材', 'メンブレン'], [{ type: 'Inter-Oss', amount: '0.5', unit: 'g' }, { type: 'サイトランス グラニュール', amount: '0.25', unit: 'g' }], ['t-imp', 't-gbr'], true,
+      { enter: '14:00', preclean: '14:15', start: '14:50', end: '15:45' }, 2),
+    mk('s4', -75, '0412', 'デンツプライシロナ PrimeTaper', '4.2×11', 'out', ['軟組織移植'], [], ['t-imp', 't-ctg'], true,
+      { enter: '09:00', preclean: '09:02', start: '09:40', end: '10:25' }, 4)
+  ];
+  cases[0].site = '#36 1本'; cases[0].notes = '嘔吐反射が強め。バキュームは浅めに';
+  cases[0].items.slice(0, 6).forEach(function (i) { cases[0].checks[i] = { by: '佐藤', at: now }; });
+  cases[0].times = {};
+  cases[0].unitFlow = 'u32'; cases[2].unitFlow = 'u32';
+  cases[1].sedation = 'iv'; cases[1].anesthetist = '〇〇先生'; cases[1].unitFlow = 'u2';
+  cases[3].unitFlow = 'u32';
+  [0, 1].forEach(function (i) { var c = cases[i]; var ins = uniq(flat(c.templateIds.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; }))); c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice(); });
+  cases[1].items.forEach(function (x) { cases[1].checks[x] = { by: '佐藤', at: now }; });
+  cases[0].items.slice(0, 6).forEach(function (x) { cases[0].checks[x] = { by: '佐藤', at: now }; });
+  cases[0].membranes = [{ type: 'サイトランス エラシールド', size: '15×20', count: '1' }];
+  cases[2].membranes = [{ type: 'バイオガイド', size: '25×25', count: '1' }];
+  cases[2].grafts = ['骨補填材', 'メンブレン', '自家骨']; cases[2].autobone = { site: '下顎枝', amount: '0.3', unit: 'cc' };
+  [0, 2].forEach(function (i) { var c = cases[i]; var ins = uniq(flat(c.templateIds.map(function (x) { return tpl.find(function (t) { return t.id === x; }).instruments; }))); c.items = uniq(ins.concat(autoItems(c))); c.managed = c.items.slice(); });
+  cases[2].items.forEach(function (x) { cases[2].checks[x] = { by: '佐藤', at: now }; });
+  cases[0].items.slice(0, 6).forEach(function (x) { cases[0].checks[x] = { by: '佐藤', at: now }; });
+  [['60代', '男性'], ['50代', '女性'], ['70代', '女性'], ['40代', '男性']].forEach(function (a, i) { cases[i].age = a[0]; cases[i].sex = a[1]; });
+  cases[1].site = '#45 #46 2本'; cases[2].site = '#26 1本'; cases[3].site = '#14 1本';
+  var feedback = [
+    { id: 'f1', caseId: 's2', author: '佐藤', createdAt: now, flow: 'bit', staff: 'ok', slow: '麻酔医の到着待ちで入室からクリーニング開始まで少しあいた',
+      good: '', tools: '', hiyari: '', improve: '麻酔医の来院時刻に合わせて患者さんの来院時刻を決める' },
+    { id: 'f2', caseId: 's3', author: '鈴木', createdAt: now, flow: 'big', staff: 'short', slow: '外回りが1人で、骨補填材の追加を取りに行く間アシストが抜けた',
+      good: '', tools: '骨補填材の予備がオペ室になかった', hiyari: '', improve: 'GBRの日は3人体制にする。骨補填材は予備を1つ出しておく' },
+    { id: 'f3', caseId: 's4', author: '院長', createdAt: now, flow: 'plan', staff: 'ok', slow: '', good: '準備から片付けまでスムーズだった', tools: '', hiyari: '', improve: '' }
+  ];
+  var posts = [{ id: 'p1', author: '院長', body: '来月からオペの日は「時間の記録」もお願いします。正味の手術時間を増やすための参考にします。', createdAt: now }];
+  var comments = [{ id: 'm1', postId: 'p1', author: '佐藤', body: '了解です。準備開始は器具を出し始めた時刻でいいですか？', createdAt: now }];
+  return { templates: tpl, cases: cases, feedback: feedback, posts: posts, comments: comments };
+}
+function demoLoad() {
+  if (demoDB) return demoDB;
+  try { demoDB = JSON.parse(LS.get('ope-demo-db-v6') || 'null'); } catch (e) { demoDB = null; }
+  if (!demoDB) demoDB = sampleDB();
+  return demoDB;
+}
+function demoSave() { LS.set('ope-demo-db-v6', JSON.stringify(demoDB)); }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function demoApi(pass, op, p) {
+  var db = demoLoad();
+  if (pass !== 'ope2026') throw new Error('PASSCODE');
+  function put(kind, obj) {
+    obj.updatedAt = new Date().toISOString();
+    var arr = db[kind], i = arr.findIndex(function (x) { return x.id === obj.id; });
+    if (i < 0) arr.push(clone(obj)); else arr[i] = clone(obj);
+    demoSave(); return clone(obj);
+  }
+  function get(kind, id) { var x = db[kind].find(function (o) { return o.id === id; }); return x ? clone(x) : null; }
+  switch (op) {
+    case 'ping': return { ok: true };
+    case 'listAll': return clone(db);
+    case 'save': return put(p.kind, p.obj);
+    case 'remove': db[p.kind] = db[p.kind].filter(function (x) { return x.id !== p.id; }); demoSave(); return { removed: true };
+    case 'toggleCheck':
+      var c = get('cases', p.caseId); c.checks = c.checks || {};
+      if (p.value) c.checks[p.item] = { by: p.name, at: new Date().toISOString() }; else delete c.checks[p.item];
+      return put('cases', c);
+    case 'confirm':
+      var c2 = get('cases', p.caseId); c2.confirmedBy = c2.confirmedBy || [];
+      if (c2.confirmedBy.indexOf(p.name) < 0) c2.confirmedBy.push(p.name);
+      return put('cases', c2);
+    case 'patch':
+      var o = get(p.kind, p.id), fl = p.fields || {};
+      Object.keys(fl).forEach(function (k) {
+        if (fl[k] && typeof fl[k] === 'object' && !Array.isArray(fl[k]) && o[k] && typeof o[k] === 'object') Object.keys(fl[k]).forEach(function (kk) { o[k][kk] = fl[k][kk]; });
+        else o[k] = fl[k];
+      });
+      return put(p.kind, o);
+    case 'seed':
+      if (db.templates.length) return { skipped: true };
+      p.templates.forEach(function (t) { put('templates', t); }); return { seeded: true };
+  }
+  throw new Error('UNKNOWN_OP');
+}
+
+function call(op, payload) {
+  var pass = state.pass;
+  return new Promise(function (resolve, reject) {
+    if (IS_GAS) {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) {
+        reject(new Error(String((e && e.message) || e)));
+      }).api(pass, op, payload || {});
+    } else if (IS_API) {
+      fetch('https://script.google.com/macros/s/' + API_ID + '/exec', {
+        method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ pass: pass, op: op, payload: payload || {} })
+      }).then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok) resolve(j.result); else reject(new Error((j && j.error) || 'SERVER'));
+      }, function () { reject(new Error('NETWORK')); });
+    } else if (!IS_DEMO) {
+      reject(new Error('NO_API'));
+    } else {
+      setTimeout(function () {
+        try { resolve(demoApi(pass, op, payload || {})); } catch (e) { reject(e); }
+      }, 60);
+    }
+  });
+}
+
+/* ---------- 状態 ---------- */
+var DEMO_FRESH = IS_DEMO && !LS.get('ope-demo-init');
+if (DEMO_FRESH) {
+  LS.set('ope-demo-init', '1'); LS.set(K_PASS, 'ope2026'); LS.set(K_NAME, '院長'); LS.set(K_AGREE, '1');
+}
+var state = {
+  pass: LS.get(K_PASS) || (DEMO_FRESH ? 'ope2026' : ''),
+  name: LS.get(K_NAME) || (DEMO_FRESH ? '院長' : ''),
+  agreed: LS.get(K_AGREE) === '1' || DEMO_FRESH,
+  data: null,
+  tab: 'cases',
+  route: null, // {name, id}
+  fbFilter: '',
+  statYear: new Date().getFullYear(),
+  busy: false
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function lines(s) { return String(s || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean); }
+function pairs(arr) { return (arr || []).map(function (x) { var i = x.indexOf('｜'); if (i < 0) i = x.indexOf('|'); return i < 0 ? [x, ''] : [x.slice(0, i).trim(), x.slice(i + 1).trim()]; }); }
+function byId(kind, id) { return (state.data[kind] || []).find(function (x) { return x.id === id; }); }
+function upsert(kind, obj) {
+  var arr = state.data[kind], i = arr.findIndex(function (x) { return x.id === obj.id; });
+  if (i < 0) arr.push(obj); else arr[i] = obj;
+}
+function drop(kind, id) { state.data[kind] = state.data[kind].filter(function (x) { return x.id !== id; }); }
+var WD = ['日', '月', '火', '水', '木', '金', '土'];
+function fmtDate(d) {
+  if (!d) return '';
+  var p = d.split('-'); var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+  return (+p[1]) + '/' + (+p[2]) + '（' + WD[dt.getDay()] + '）';
+}
+function fmtTs(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function tplLabel(t) { return t ? t.category + '｜' + t.name : '（削除されたテンプレート）'; }
+
+function toast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(function () { el.classList.remove('show'); }, 2000);
+}
+function fail(e) {
+  var m = String(e && e.message || e);
+  if (m.indexOf('PASSCODE') >= 0) {
+    LS.del(K_PASS); state.pass = ''; state.data = null; render();
+    toast('合言葉が変わりました。入力し直してください');
+    return;
+  }
+  if (m.indexOf('LOCKED') >= 0) { toast('合言葉の入力ミスが続いたため、10分ほどお待ちください'); return; }
+  toast('うまく保存できませんでした。電波を確認してもう一度');
+  console.error(e);
+}
+function run(op, payload) {
+  return call(op, payload).catch(function (e) { fail(e); throw e; });
+}
+
+/* ---------- 読み込み ---------- */
+function loadAll() {
+  return run('listAll').then(function (d) {
+    state.data = d;
+    if (!d.templates.length) {
+      return run('seed', { templates: SEED }).then(function () { return run('listAll'); }).then(function (d2) { state.data = d2; });
+    }
+  }).then(render);
+}
+
+/* ---------- 画面 ---------- */
+function render() {
+  var app = document.getElementById('app');
+  if (IS_PAGES && !IS_API) {
+    app.innerHTML = '<div class="gate card"><h1>オペ共有</h1><p class="center">LINEグループのアナウンスにあるリンクから開いてください。</p><p class="muted center">一度リンクから開けば、次からはこの画面（ホーム画面のアイコンなど）から開けます。</p></div>';
+    return;
+  }
+  document.getElementById('demo').innerHTML = !IS_DEMO ? '' : '<div class="demo">デモ版：サンプルデータ入り。操作はこの端末にだけ保存され、スタッフとは共有されません（合言葉 ope2026）</div>';
+  if (!state.pass) { app.innerHTML = viewPass(); return; }
+  if (!state.name) { app.innerHTML = viewName(); return; }
+  if (!state.agreed) { app.innerHTML = viewRules(true); return; }
+  if (!state.data) { app.innerHTML = '<div class="spinner">読み込み中…</div>'; return; }
+  var r = state.route, title = 'オペ共有', body = '', back = !!r;
+  if (r) {
+    if (r.name === 'case') { body = viewCase(r.id); title = '症例'; }
+    else if (r.name === 'caseForm') { body = viewCaseForm(r.id); title = r.id ? '症例を編集' : '新しい症例'; }
+    else if (r.name === 'tpl') { body = viewTpl(r.id); title = 'テンプレート'; }
+    else if (r.name === 'tplForm') { body = viewTplForm(r.id); title = r.id ? 'テンプレートを編集' : '新しいテンプレート'; }
+    else if (r.name === 'post') { body = viewPost(r.id); title = '掲示板'; }
+    else if (r.name === 'postForm') { body = viewPostForm(); title = '新しい投稿'; }
+    else if (r.name === 'rules') { body = viewRules(false); title = '運用ルール'; }
+    else if (r.name === 'me') { body = viewMe(); title = '設定'; }
+  } else {
+    if (state.tab === 'cases') { body = viewCases(); title = '症例'; }
+    else if (state.tab === 'feedback') { body = viewFeedback(); title = '振り返り'; }
+    else if (state.tab === 'tpls') { body = viewTpls(); title = 'テンプレート'; }
+    else if (state.tab === 'board') { body = viewBoard(); title = '掲示板'; }
+    else if (state.tab === 'stats') { body = viewStats(); title = '統計'; }
+  }
+  var tabs = [['cases', '🗓', '症例'], ['feedback', '📝', '振り返り'], ['tpls', '🧰', 'テンプレ'], ['board', '💬', '掲示板'], ['stats', '📊', '統計']];
+  app.innerHTML =
+    '<header>' + (back ? '<button class="btn link" data-a="back">‹ 戻る</button>' : '') +
+    '<h1>' + esc(title) + '</h1>' +
+    (back ? '' : '<button class="btn link" data-a="reload">更新</button><button class="btn link me" data-a="go" data-r="me">' + esc(state.name) + '</button>') +
+    '</header><main>' + body + '</main>' +
+    '<nav class="tabs">' + tabs.map(function (t) {
+      return '<button data-a="tab" data-tab="' + t[0] + '" class="' + (!r && state.tab === t[0] ? 'on' : '') + '"><span class="ico">' + t[1] + '</span>' + t[2] + '</button>';
+    }).join('') + '</nav>';
+}
+
+function viewPass() {
+  return '<div class="gate card"><h1>オペ共有</h1><p class="muted center">医院の合言葉を入力してください</p>' +
+    '<form data-f="pass"><input type="password" name="pass" autocomplete="current-password" required placeholder="合言葉">' +
+    '<div style="height:12px"></div><button class="btn primary block">次へ</button></form></div>';
+}
+function viewName() {
+  return '<div class="gate card"><h1>お名前</h1><p class="muted center">書き込みに表示される名前です（スタッフ同士で分かる呼び名でOK）</p>' +
+    '<form data-f="name"><input type="text" name="name" required maxlength="20" placeholder="例：田中"><div style="height:12px"></div>' +
+    '<button class="btn primary block">次へ</button></form></div>';
+}
+var RULES = [
+  '<b>患者さんはカルテ番号だけで記録します。</b>氏名・イニシャル・生年月日・住所・顔や口腔内の写真・X線画像は書きません。',
+  'URLと合言葉は院外の人に教えません。スマホには画面ロックをかけます。',
+  'LINEのトークには患者さんの情報を書きません（カルテ番号も）。',
+  '振り返りは人を責めるためではなく、次の手術をよくするための記録です。',
+  '緊急時はアプリではなく、院長の指示・院内の緊急時マニュアル・119番を優先します。',
+  'うっかり個人情報を書いてしまったら、すぐ消して院長に伝えます。'
+];
+function viewRules(gate) {
+  var html = '<div class="' + (gate ? 'gate ' : '') + 'card">' + (gate ? '<h1>使う前に確認</h1>' : '') +
+    '<ol class="rules">' + RULES.map(function (r) { return '<li>' + r + '</li>'; }).join('') + '</ol>' +
+    '<p class="muted">くわしくは院内の「運用ルール」を確認してください。</p>';
+  if (gate) html += '<button class="btn primary block" data-a="agree">読んで、守ることに同意します</button>';
+  return html + '</div>';
+}
+function viewMe() {
+  return '<div class="card"><label class="f">表示名</label><form data-f="rename" class="row">' +
+    '<input type="text" name="name" value="' + esc(state.name) + '" maxlength="20" required><button class="btn">変更</button></form></div>' +
+    '<div class="card"><button class="btn block" data-a="go" data-r="rules">運用ルールを見る</button><div style="height:8px"></div>' +
+    '<button class="btn danger block" data-a="logout">この端末からログアウト</button></div>';
+}
+
+/* --- 症例 --- */
+function caseProgress(c) {
+  var total = (c.items || []).length, done = Object.keys(c.checks || {}).filter(function (k) { return (c.items || []).indexOf(k) >= 0; }).length;
+  return [done, total];
+}
+var AGES = ['10代', '20代', '30代', '40代', '50代', '60代', '70代', '80代', '90代'];
+var SEXES = ['男性', '女性'];
+function who(c) { return 'No.' + c.chartNo + ((c.age || c.sex) ? '　' + (c.age || '') + (c.sex || '') : ''); }
+function caseRow(c) {
+  var pr = caseProgress(c);
+  var fbn = state.data.feedback.filter(function (f) { return f.caseId === c.id; }).length;
+  var badge = c.status === 'done'
+    ? (fbn ? '<span class="badge ok">振り返り ' + fbn + '件</span>' : '<span class="badge warn">振り返り待ち</span>')
+    : '<span class="badge ' + (pr[0] === pr[1] && pr[1] ? 'ok' : '') + '">準備 ' + pr[0] + '/' + pr[1] + '</span>';
+  return '<button class="card list-item" data-a="go" data-r="case" data-id="' + c.id + '">' +
+    '<div class="row"><div class="grow"><div class="who">' + esc(who(c)) + '</div>' +
+    '<div class="title">' + esc(c.procedureName || procName(tplsOf(c))) + '</div>' +
+    '<div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '　' + esc(c.site || '') + (c.system ? '　' + esc(c.system) : '') + (c.sedation === 'iv' ? '　鎮静' : '') + (c.status !== 'done' ? '　確認 ' + (c.confirmedBy || []).length + '人' : '') + '</div></div>' + badge + '</div></button>';
+}
+function viewCases() {
+  var cs = state.data.cases.slice();
+  var up = cs.filter(function (c) { return c.status !== 'done'; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
+  var done = cs.filter(function (c) { return c.status === 'done'; }).sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
+  return '<button class="btn primary block" data-a="go" data-r="caseForm">＋ 新しい症例を登録</button>' +
+    '<div class="sectionhead"><h2>これからのオペ（' + up.length + '）</h2></div>' +
+    (up.length ? up.map(caseRow).join('') : '<p class="muted">予定はありません</p>') +
+    '<div class="sectionhead"><h2>終わったオペ</h2></div>' +
+    (done.length ? done.slice(0, 30).map(caseRow).join('') : '<p class="muted">まだありません</p>');
+}
+function tplOptions(sel) {
+  return CATEGORIES.map(function (cat) {
+    var ts = state.data.templates.filter(function (t) { return t.category === cat; });
+    if (!ts.length) return '';
+    return '<optgroup label="' + esc(cat) + '">' + ts.map(function (t) {
+      return '<option value="' + t.id + '"' + (t.id === sel ? ' selected' : '') + '>' + esc(t.name) + '</option>';
+    }).join('') + '</optgroup>';
+  }).join('');
+}
+function viewCaseForm(id) {
+  var c = id ? byId('cases', id) : { date: today(), time: '', roles: {} };
+  var roles = c.roles || {};
+  return '<form class="card" data-f="case" data-id="' + (id || '') + '">' +
+    '<div class="notice">患者さんは<b>カルテ番号だけ</b>で登録します。氏名・イニシャルは入れません。</div>' +
+    '<label class="f">処置（併用するものはすべて選ぶ）</label>' + tplPicker(tplIds(c)) +
+    '<div class="muted">選んだ処置の器具リスト・注意点・トラブル対応がまとめて入ります（重複は1つにまとめます）</div>' +
+    '<div class="row"><div class="grow"><label class="f">日付</label><input type="date" name="date" required value="' + esc(c.date) + '"></div>' +
+    '<div class="grow"><label class="f">開始時刻</label><input type="time" name="time" value="' + esc(c.time) + '"></div></div>' +
+    '<label class="f">カルテ番号</label><input type="text" name="chartNo" required pattern="[0-9A-Za-z\\-]+" placeholder="半角英数字" value="' + esc(c.chartNo) + '">' +
+    '<div class="row"><div class="grow"><label class="f">年代</label><select name="age"><option value="">—</option>' + AGES.map(function (x) { return '<option' + (x === c.age ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
+    '<div class="grow"><label class="f">性別</label><select name="sex"><option value="">—</option>' + SEXES.map(function (x) { return '<option' + (x === c.sex ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="muted">一覧で見分けやすくするためです（年齢は書かず年代で）</div>' +
+    '<label class="f">部位・本数</label><input type="text" name="site" placeholder="例：#36 1本" value="' + esc(c.site) + '">' +
+    implantFields(c) +
+    '<label class="f">詳細（サイズ・材料など）</label><input type="text" name="detail" placeholder="例：φ4.0×10mm" value="' + esc(c.detail) + '">' +
+    '<label class="f">静脈内鎮静</label><div class="seg">' + Object.keys(SEDATION).map(function (k) {
+      return '<label><input type="radio" name="sedation" value="' + k + '"' + ((c.sedation || 'none') === k ? ' checked' : '') + '><span>' + SEDATION[k] + '</span></label>';
+    }).join('') + '</div>' +
+    '<div id="anesBox" style="' + (c.sedation === 'iv' ? '' : 'display:none') + '"><label class="f">麻酔医</label><input type="text" name="anesthetist" placeholder="お名前（任意）" value="' + esc(c.anesthetist || '') + '"></div>' +
+    '<label class="f">ユニットの使い方</label><select name="unitFlow">' + Object.keys(UNITS).map(function (k) {
+      return '<option value="' + k + '"' + ((c.unitFlow || '') === k ? ' selected' : '') + '>' + UNITS[k] + '</option>';
+    }).join('') + '</select><div class="muted">麻酔医を呼ぶ日は、ふつう「ユニット2のみ」です</div>' +
+    '<label class="f">術者</label><input type="text" name="surgeon" value="' + esc(roles.surgeon || '') + '">' +
+    '<label class="f">アシスト</label><input type="text" name="assist" value="' + esc(roles.assist || '') + '">' +
+    '<label class="f">外回り</label><input type="text" name="circ" value="' + esc(roles.circ || '') + '">' +
+    '<label class="f">この症例の注意点</label><textarea name="notes" placeholder="例：抗凝固薬服用中・嘔吐反射が強い・不安が強い">' + esc(c.notes) + '</textarea>' +
+    '<div class="hint">手術の準備に必要なことだけ。病歴の詳細は電子カルテで確認します。</div>' +
+    '<div style="height:16px"></div><button class="btn primary block">保存</button></form>';
+}
+function tplPicker(sel) {
+  return CATEGORIES.map(function (cat) {
+    var ts = state.data.templates.filter(function (t) { return t.category === cat; });
+    if (!ts.length) return '';
+    return '<div class="muted" style="margin:8px 0 4px">' + esc(cat) + '</div><div class="seg">' + ts.map(function (t) {
+      return '<label><input type="checkbox" name="tpl" value="' + t.id + '"' + (sel.indexOf(t.id) >= 0 ? ' checked' : '') + '><span>' + esc(t.name) + '</span></label>';
+    }).join('') + '</div>';
+  }).join('');
+}
+function implantFields(c) {
+  var show = hasImplantCat(tplsOf(c));
+  var g = c.grafts || [];
+  return '<div id="implantBox" style="' + (show ? '' : 'display:none') + '">' +
+    '<label class="f">インプラントシステム</label><select name="system"><option value="">埋入なし</option>' +
+    IMPLANT_SYSTEMS.concat(c.system && IMPLANT_SYSTEMS.indexOf(c.system) < 0 ? [c.system] : []).map(function (x) {
+      return '<option' + (x === c.system ? ' selected' : '') + '>' + esc(x) + '</option>';
+    }).join('') + '</select>' +
+    '<div class="row"><div style="width:110px"><label class="f">本数</label><input type="text" name="implantCount" inputmode="numeric" placeholder="例：2" value="' + esc(c.implantCount || '') + '"></div>' +
+    '<div class="grow"><label class="f">サイズ（1行に1本）</label><textarea name="implantSizes" rows="2" placeholder="例：4.0×10">' + esc(c.implantSizes || '') + '</textarea></div></div>' +
+    '<div class="muted">統計と在庫管理に使います。術中に変わったら、オペ後に実際の内容に直してください</div>' +
+    '<label class="f">サージカルガイド</label><div class="seg">' + Object.keys(GUIDES).map(function (k) {
+      return '<label><input type="radio" name="guide" value="' + k + '"' + ((c.guide || 'none') === k ? ' checked' : '') + '><span>' + GUIDES[k] + '</span></label>';
+    }).join('') + '</div>' +
+    '<label class="f">グラフト（使うものすべて）</label><div class="seg">' + GRAFTS.map(function (x) {
+      return '<label><input type="checkbox" name="graft" value="' + esc(x) + '"' + (g.indexOf(x) >= 0 ? ' checked' : '') + '><span>' + esc(x) + '</span></label>';
+    }).join('') + '</div><div class="muted">何も選ばなければ「グラフトなし」です</div>' +
+    '<div id="boneBox" style="' + (g.indexOf('骨補填材') >= 0 ? '' : 'display:none') + '">' +
+    '<label class="f">骨補填材（使うものすべてと予定量）</label>' + boneRows(c.bones || []) +
+    '<div class="muted">足りなくならないよう、予備の量も準備しておきます</div></div>' +
+    '<div id="memBox" style="' + (g.indexOf('メンブレン') >= 0 ? '' : 'display:none') + '">' +
+    '<label class="f">メンブレン（使うものすべてとサイズ・枚数）</label>' + memRows(c.membranes || []) + '</div>' +
+    autoRows(Object.assign({}, c.autobone || {}, { on: g.indexOf('自家骨') >= 0 })) + '</div>';
+}
+function boneRows(bones) {
+  function find(t) { return bones.find(function (b) { return b.type === t; }); }
+  var other = bones.find(function (b) { return BONE_MATERIALS.indexOf(b.type) < 0; });
+  function unitSel(name, u) { return '<select name="' + name + '" style="width:72px">' + BONE_UNITS.map(function (x) { return '<option' + (x === u ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>'; }
+  return BONE_MATERIALS.map(function (m, i) {
+    var b = find(m);
+    return '<div class="row" style="margin:6px 0"><label class="check" style="border:0;padding:0;flex:1;min-width:0"><input type="checkbox" name="bone" value="' + i + '"' + (b ? ' checked' : '') + '><span class="small"><b>' + esc(m) + '</b></span></label>' +
+      '<input type="text" name="boneAmt' + i + '" inputmode="decimal" placeholder="量" value="' + esc(b ? b.amount : '') + '" style="width:76px">' + unitSel('boneUnit' + i, b ? b.unit : 'g') + '</div>';
+  }).join('') +
+  '<div class="row" style="margin:6px 0"><input type="text" name="boneOther" placeholder="その他（名前）" value="' + esc(other ? other.type : '') + '" style="flex:1;min-width:0">' +
+  '<input type="text" name="boneAmtX" inputmode="decimal" placeholder="量" value="' + esc(other ? other.amount : '') + '" style="width:76px">' + unitSel('boneUnitX', other ? other.unit : 'g') + '</div>';
+}
+function memRows(mems) {
+  var other = mems.find(function (m) { return MEMBRANES.indexOf(m.type) < 0; });
+  function cells(i, m) {
+    return '<input type="text" name="memSize' + i + '" placeholder="サイズ" value="' + esc(m ? m.size : '') + '" style="width:92px">' +
+      '<input type="text" name="memCnt' + i + '" inputmode="numeric" placeholder="枚" value="' + esc(m ? m.count : '') + '" style="width:52px;text-align:center">';
+  }
+  return MEMBRANES.map(function (name, i) {
+    var m = mems.find(function (x) { return x.type === name; });
+    return '<div class="row" style="margin:6px 0"><label class="check" style="border:0;padding:0;flex:1;min-width:0"><input type="checkbox" name="mem" value="' + i + '"' + (m ? ' checked' : '') + '><span class="small"><b>' + esc(name) + '</b></span></label>' + cells(i, m) + '</div>';
+  }).join('') +
+  '<div class="row" style="margin:6px 0"><input type="text" name="memOther" placeholder="その他（名前）" value="' + esc(other ? other.type : '') + '" style="flex:1;min-width:0">' + cells('X', other) + '</div>' +
+  '<div class="muted">サイズの例：15×20（mm）</div>';
+}
+function autoRows(ab) {
+  var isOther = ab.site && AUTO_SITES.indexOf(ab.site) < 0;
+  return '<div id="autoBox" style="' + (ab.on ? '' : 'display:none') + '">' +
+    '<label class="f">自家骨の採取部位</label><select name="abSite"><option value="">選んでください</option>' +
+    AUTO_SITES.map(function (x) { return '<option' + (x === ab.site ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') +
+    '<option value="__other"' + (isOther ? ' selected' : '') + '>その他</option></select>' +
+    '<input type="text" name="abOther" placeholder="その他の部位" value="' + esc(isOther ? ab.site : '') + '" style="margin-top:6px;' + (isOther ? '' : 'display:none') + '">' +
+    '<label class="f">予定量</label><div class="row"><input type="text" name="abAmt" inputmode="decimal" placeholder="量" value="' + esc(ab.amount || '') + '" style="flex:1">' +
+    '<select name="abUnit" style="width:72px">' + BONE_UNITS.map(function (x) { return '<option' + (x === ab.unit ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div></div>';
+}
+function autoText(ab) { return (ab.site || '部位未入力') + (ab.amount ? ' ' + ab.amount + (ab.unit || 'g') : ''); }
+function memText(m) { return m.type + (m.size ? ' ' + m.size : '') + (m.count ? ' ×' + m.count + '枚' : ''); }
+function boneText(b) { return b.type + (b.amount ? ' ' + b.amount + (b.unit || 'g') : ''); }
+function autoItems(c) {
+  var out = [];
+  if (c.system) out.push('インプラント体（' + c.system + '・予定サイズ＋前後のサイズ）', c.system + ' のサージカルキット');
+  if (c.guide === 'out') out.push('サージカルガイド（外注）受け取り・適合確認');
+  if (c.guide === 'inhouse') out.push('サージカルガイド（インハウス）製作・適合確認');
+  (c.grafts || []).forEach(function (g) {
+    if (g === '骨補填材' && (c.bones || []).length) c.bones.forEach(function (b) { out.push('骨補填材：' + boneText(b) + '（グラフト）'); });
+    else if (g === 'メンブレン' && (c.membranes || []).length) c.membranes.forEach(function (m) { out.push('メンブレン：' + memText(m) + '（グラフト）'); });
+    else if (g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount)) out.push('自家骨：' + autoText(c.autobone) + '（採取器具・保管用の生理食塩水）');
+    else out.push(g + '（グラフト）');
+  });
+  if (c.sedation === 'iv') out.push('麻酔医の来院時刻の確認', '生体情報モニター・酸素の準備（ユニット2）', '術前の飲食について患者さんへの説明（麻酔医の指示どおり）', '付き添い・帰宅方法の確認');
+  return out;
+}
+function implantSummary(c) {
+  var parts = [];
+  if (c.system) parts.push(c.system + (implantN(c) ? ' ' + implantN(c) + '本' : ''));
+  if (c.guide && c.guide !== 'none') parts.push('ガイド：' + GUIDES[c.guide]);
+  if (c.system || c.guide || c.grafts) parts.push('グラフト：' + ((c.grafts || []).length ? c.grafts.map(function (g) { return g === '骨補填材' && (c.bones || []).length ? '骨補填材（' + c.bones.map(boneText).join('、') + '）' : g === 'メンブレン' && (c.membranes || []).length ? 'メンブレン（' + c.membranes.map(memText).join('、') + '）' : g === '自家骨' && c.autobone && (c.autobone.site || c.autobone.amount) ? '自家骨（' + autoText(c.autobone) + '）' : g; }).join('・') : 'なし'));
+  return parts.join('　');
+}
+function viewCase(id) {
+  var c = byId('cases', id);
+  if (!c) return '<p class="muted">この症例は削除されました</p>';
+  var ts = tplsOf(c), roles = c.roles || {}, pr = caseProgress(c);
+  var fbs = state.data.feedback.filter(function (f) { return f.caseId === c.id; }).sort(function (a, b) { return a.createdAt.localeCompare(b.createdAt); });
+  var confirmed = c.confirmedBy || [], iConfirmed = confirmed.indexOf(state.name) >= 0;
+  var h = '';
+  h += '<div class="card"><div class="who">' + esc(who(c)) + '</div><div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '</div>' +
+    '<div class="title" style="font-size:18px;font-weight:800">' + esc(c.procedureName || procName(ts)) + '</div>' +
+    (c.site ? '<div>' + esc(c.site) + '</div>' : '') +
+    (c.sedation === 'iv' || UNITS[c.unitFlow] && c.unitFlow ? '<div class="row wrap" style="margin-top:6px;gap:6px">' +
+      (c.sedation === 'iv' ? '<span class="badge warn">静脈内鎮静' + (c.anesthetist ? '（' + esc(c.anesthetist) + '）' : '') + '</span>' : '') +
+      (c.unitFlow ? '<span class="badge gray">' + esc(UNITS[c.unitFlow]) + '</span>' : '') + '</div>' : '') + (implantSummary(c) ? '<div class="small" style="margin-top:4px">' + esc(implantSummary(c)) + '</div>' : '') +
+    (c.detail ? '<div class="muted">' + esc(c.detail) + '</div>' : '') +
+    '<h3>役割</h3><div class="small">術者：' + esc(roles.surgeon || '—') + '　アシスト：' + esc(roles.assist || '—') + '　外回り：' + esc(roles.circ || '—') + '</div>' +
+    '<div class="row" style="margin-top:10px"><button class="btn sm" data-a="go" data-r="caseForm" data-id="' + c.id + '">編集</button>' +
+    '</div>' + (ts.length ? '<div class="row wrap" style="margin-top:6px;gap:6px"><span class="muted">テンプレート：</span>' + ts.map(function (t) {
+      return '<button class="btn link small" style="padding:2px 0" data-a="go" data-r="tpl" data-id="' + t.id + '">' + esc(t.name) + ' ›</button>';
+    }).join('') + '</div>' : '') + '</div>';
+
+  var cautions = uniq(flat(ts.map(function (t) { return t.cautions || []; })));
+  if (c.notes || cautions.length) {
+    h += '<div class="card"><h2>⚠️ 注意点</h2>' + (c.notes ? '<div class="notice pre">' + esc(c.notes) + '</div>' : '') +
+      (cautions.length ? '<ul class="plain">' + cautions.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+  }
+
+  h += '<div class="card"><div class="row"><h2 class="grow" style="margin:0">🧰 器具・材料（' + pr[0] + '/' + pr[1] + '）</h2></div>' +
+    (c.items || []).map(function (it, i) {
+      var ck = (c.checks || {})[it];
+      return '<label class="check' + (ck ? ' done' : '') + '"><input type="checkbox" data-a="check" data-id="' + c.id + '" data-i="' + i + '"' + (ck ? ' checked' : '') + '>' +
+        '<div class="grow"><div class="txt">' + esc(it) + '</div>' + (ck ? '<div class="who">' + esc(ck.by) + '　' + fmtTs(ck.at) + '</div>' : '') + '</div></label>';
+    }).join('') +
+    '<form data-f="additem" data-id="' + c.id + '" class="row" style="margin-top:8px"><input type="text" name="item" placeholder="この症例だけ追加する器具" required><button class="btn sm">追加</button></form></div>';
+
+  var risks = pairs(uniq(flat(ts.map(function (t) { return t.risks || []; }))));
+  if (risks.length) {
+    h += '<div class="card"><h2>🚨 不測の事態への対応</h2><div class="muted">タップすると対応が開きます</div>' +
+      risks.map(function (r) { return '<details class="risk"><summary>' + esc(r[0]) + '</summary><div>' + esc(r[1] || '（対応が未記入です）') + '</div></details>'; }).join('') + '</div>';
+  }
+  var refs = uniq(flat(ts.map(function (t) { return t.refs || []; })));
+  if (refs.length) h += refsCard(refs);
+
+  h += timesCard(c);
+  h += '<div class="card"><h2>✅ 確認</h2><div class="small">' + (confirmed.length ? '確認済み：' + confirmed.map(esc).join('、') : 'まだ誰も確認していません') + '</div>' +
+    (iConfirmed ? '' : '<div style="height:10px"></div><button class="btn ok block" data-a="confirm" data-id="' + c.id + '">内容を確認しました</button>') + '</div>';
+
+  if (c.status !== 'done') {
+    h += '<button class="btn primary block" data-a="finish" data-id="' + c.id + '">オペ終了 → 振り返りを書く</button><div style="height:12px"></div>';
+  } else {
+    h += '<div class="card"><h2>📝 振り返り（' + fbs.length + '）</h2>' + (fbs.length ? fbs.map(fbView).join('') : '<p class="muted">まだありません。手術に入った人は当日中に書きましょう。</p>') + '</div>';
+    var mine = fbs.some(function (f) { return f.author === state.name; });
+    h += mine ? '' : fbForm(c.id);
+  }
+  h += '<div style="height:8px"></div><button class="btn danger block sm" data-a="delcase" data-id="' + c.id + '">この症例を削除</button>';
+  return h;
+}
+function refsCard(refs) {
+  return '<div class="card"><h2>📚 参考資料</h2><ul class="plain">' + pairs(refs).map(function (r) {
+    var url = /^https?:\/\//.test(r[1]) ? r[1] : '';
+    return '<li>' + (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(r[0]) + '</a>' : esc(r[0] + (r[1] ? ' ' + r[1] : ''))) + '</li>';
+  }).join('') + '</ul></div>';
+}
+var PHASES = [['enter', '患者入室'], ['preclean', 'オペ前クリーニング開始'], ['start', '手術開始'], ['end', '手術終了']];
+var SEDATION = { none: 'なし', iv: '静脈内鎮静（麻酔医）' };
+var UNITS = { '': '未設定', u32: 'ユニット3 → ユニット2', u2: 'ユニット2のみ（麻酔から）', other: 'その他' };
+var UNIT_HINT = { u32: 'ユニット3でクリーニング・麻酔 → ユニット2（滅菌環境）で手術', u2: 'ユニット2で麻酔から手術まで' };
+var STAFF = { ok: '足りた', tight: 'ぎりぎり', short: '足りなかった' };
+function toMin(t) { if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return null; var p = t.split(':'); return +p[0] * 60 + +p[1]; }
+function span(times, a, b) { var x = toMin((times || {})[a]), y = toMin((times || {})[b]); return x == null || y == null || y < x ? null : y - x; }
+function fmtMin(m) { if (m == null) return '—'; m = Math.round(m); return m >= 60 ? Math.floor(m / 60) + '時間' + (m % 60 ? m % 60 + '分' : '') : m + '分'; }
+function durations(c) {
+  var t = c.times || {};
+  return { wait: span(t, 'enter', 'preclean'), pre: span(t, 'preclean', 'start'), net: span(t, 'start', 'end'), total: span(t, 'enter', 'end') };
+}
+function timesCard(c) {
+  var t = c.times || {}, d = durations(c);
+  var h = '<div class="card"><h2>⏱ 時間と人数の記録</h2><div class="muted">「今」を押すと現在時刻が入ります。あとから時刻を直すこともできます</div>' +
+    (UNIT_HINT[c.unitFlow] ? '<div class="notice info" style="margin:8px 0 0">' + esc(UNIT_HINT[c.unitFlow]) + '</div>' : '') +
+    PHASES.map(function (ph) {
+      return '<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line)"><div class="grow small"><b>' + ph[1] + '</b></div>' +
+        '<input type="time" data-a="time" data-id="' + c.id + '" data-k="' + ph[0] + '" value="' + esc(t[ph[0]] || '') + '" style="width:136px">' +
+        '<button class="btn sm" data-a="now" data-id="' + c.id + '" data-k="' + ph[0] + '">今</button></div>';
+    }).join('') +
+    '<div class="row" style="padding:10px 0 0"><div class="grow small"><b>入ったスタッフの人数</b>（術者を含む）</div>' +
+    '<input type="text" inputmode="numeric" data-a="staffn" data-id="' + c.id + '" value="' + esc(c.staffCount || '') + '" style="width:70px;text-align:center">人</div>';
+  if (d.total != null || d.net != null) {
+    h += '<table class="tbl" style="margin-top:10px"><tbody>' +
+      [['入室 → クリーニング開始', d.wait], ['クリーニング・麻酔（→ 手術開始）', d.pre], ['正味の手術時間', d.net], ['全体（入室 → 手術終了）', d.total]].map(function (r) {
+        return '<tr><td>' + r[0] + '</td><td class="num"><b>' + fmtMin(r[1]) + '</b></td></tr>';
+      }).join('') + '</tbody></table>' +
+      (d.total && d.net != null ? '<div class="muted" style="margin-top:6px">全体のうち正味の手術時間は ' + Math.round(d.net / d.total * 100) + '%</div>' : '');
+  }
+  return h + '</div>';
+}
+var FLOW = { plan: '予定どおり', bit: '少し手間取った', big: '大きく遅れた・中断' };
+function fbView(f, withCase) {
+  var c = withCase ? byId('cases', f.caseId) : null;
+  return '<div class="fb">' +
+    (withCase ? '<button class="btn link small" style="padding:0" data-a="go" data-r="case" data-id="' + f.caseId + '">' +
+      (c ? fmtDate(c.date) + ' ' + esc(who(c)) + ' ' + esc(c.procedureName || '') : '（削除された症例）') + ' ›</button>' : '') +
+    '<div class="row"><b class="grow">' + esc(f.author) + '</b><span class="badge ' + (f.flow === 'plan' ? 'ok' : f.flow === 'big' ? 'warn' : 'gray') + '">' + esc(FLOW[f.flow] || '') + '</span>' +
+    (f.staff ? '<span class="badge ' + (f.staff === 'short' ? 'warn' : f.staff === 'ok' ? 'ok' : 'gray') + '">人手：' + esc(STAFF[f.staff]) + '</span>' : '') + '</div>' +
+    (f.slow ? '<div class="k">時間がかかったところ</div><div class="pre">' + esc(f.slow) + '</div>' : '') +
+    (f.good ? '<div class="k">良かったこと</div><div class="pre">' + esc(f.good) + '</div>' : '') +
+    (f.tools ? '<div class="k">器具・材料の過不足</div><div class="pre">' + esc(f.tools) + '</div>' : '') +
+    (f.hiyari ? '<div class="hiyari"><div class="k">ヒヤリハット</div><div class="pre">' + esc(f.hiyari) + '</div></div>' : '') +
+    (f.improve ? '<div class="improve"><div class="k">次への改善案</div><div class="pre">' + esc(f.improve) + '</div></div>' : '') +
+    '<div class="row"><span class="muted grow">' + fmtTs(f.createdAt) + '</span>' +
+    (f.author === state.name ? '<button class="btn link small" data-a="delfb" data-id="' + f.id + '">削除</button>' : '') + '</div></div>';
+}
+function fbForm(caseId) {
+  return '<form class="card" data-f="fb" data-id="' + caseId + '"><h2>振り返りを書く</h2>' +
+    '<div class="muted">1〜2行で大丈夫です。人ではなく「何が起きて、どうすれば防げるか」を書きます。</div>' +
+    '<label class="f">進み具合</label><div class="seg">' + Object.keys(FLOW).map(function (k, i) {
+      return '<label><input type="radio" name="flow" value="' + k + '"' + (i === 0 ? ' checked' : '') + '><span>' + FLOW[k] + '</span></label>';
+    }).join('') + '</div>' +
+    '<label class="f">人手</label><div class="seg">' + Object.keys(STAFF).map(function (k, i) {
+      return '<label><input type="radio" name="staff" value="' + k + '"' + (i === 0 ? ' checked' : '') + '><span>' + STAFF[k] + '</span></label>';
+    }).join('') + '</div>' +
+    '<label class="f">時間がかかったところ</label><textarea name="slow" rows="2" placeholder="例：器具の準備に手間取った／クリーニングから手術開始まで長かった"></textarea>' +
+    '<label class="f">良かったこと</label><textarea name="good" rows="2"></textarea>' +
+    '<label class="f">器具・材料の過不足</label><textarea name="tools" rows="2" placeholder="例：縫合糸が足りなかった／〇〇は使わなかった"></textarea>' +
+    '<label class="f">ヒヤリハット</label><textarea name="hiyari" rows="2"></textarea>' +
+    '<label class="f">次への改善案</label><textarea name="improve" rows="2" placeholder="例：テンプレートに△△を追加したい"></textarea>' +
+    '<div class="hint">患者さんの個人情報は書かないでください。</div>' +
+    '<div style="height:12px"></div><button class="btn primary block">送信</button></form>';
+}
+
+/* --- 振り返り一覧 --- */
+function viewFeedback() {
+  var fbs = state.data.feedback.slice().sort(function (a, b) { return b.createdAt.localeCompare(a.createdAt); });
+  var f = state.fbFilter;
+  if (f) fbs = fbs.filter(function (x) { var c = byId('cases', x.caseId); return c && tplIds(c).indexOf(f) >= 0; });
+  var pending = state.data.cases.filter(function (c) {
+    return c.status === 'done' && !state.data.feedback.some(function (x) { return x.caseId === c.id; });
+  });
+  var h = '';
+  if (pending.length) {
+    h += '<div class="notice">振り返りがまだの症例が ' + pending.length + ' 件あります</div>' + pending.slice(0, 5).map(caseRow).join('');
+  }
+  h += '<label class="f">処置で絞り込む</label><select data-a="fbfilter"><option value="">すべて</option>' + tplOptions(f) + '</select><div style="height:12px"></div>';
+  var imp = fbs.filter(function (x) { return x.improve; });
+  if (f && imp.length) {
+    h += '<div class="card"><h2>この処置の改善案まとめ（' + imp.length + '）</h2><ul class="plain">' + imp.map(function (x) { return '<li class="pre">' + esc(x.improve) + '</li>'; }).join('') + '</ul>' +
+      '<button class="btn sm" data-a="go" data-r="tplForm" data-id="' + f + '">テンプレートに反映する</button></div>';
+  }
+  h += '<div class="card">' + (fbs.length ? fbs.slice(0, 50).map(function (x) { return fbView(x, true); }).join('') : '<p class="muted">まだ振り返りはありません</p>') + '</div>';
+  return h;
+}
+
+/* --- テンプレート --- */
+function viewTpls() {
+  var h = '<button class="btn primary block" data-a="go" data-r="tplForm">＋ 新しいテンプレート</button>';
+  CATEGORIES.forEach(function (cat) {
+    var ts = state.data.templates.filter(function (t) { return t.category === cat; });
+    if (!ts.length) return;
+    h += '<div class="sectionhead"><h2>' + esc(cat) + '</h2></div>' + ts.map(function (t) {
+      var n = state.data.cases.filter(function (c) { return tplIds(c).indexOf(t.id) >= 0; }).length;
+      return '<button class="card list-item" data-a="go" data-r="tpl" data-id="' + t.id + '"><div class="row"><div class="grow title">' + esc(t.name) + '</div>' +
+        (t.draft ? '<span class="badge warn">叩き台</span>' : '') + '<span class="badge gray">' + n + '症例</span></div>' +
+        '<div class="muted">器具 ' + (t.instruments || []).length + '点・トラブル対応 ' + (t.risks || []).length + '件</div></button>';
+    }).join('');
+  });
+  return h;
+}
+function viewTpl(id) {
+  var t = byId('templates', id);
+  if (!t) return '<p class="muted">削除されました</p>';
+  var caseIds = state.data.cases.filter(function (c) { return tplIds(c).indexOf(t.id) >= 0; }).map(function (c) { return c.id; });
+  var imp = state.data.feedback.filter(function (f) { return caseIds.indexOf(f.caseId) >= 0 && (f.improve || f.tools); })
+    .sort(function (a, b) { return b.createdAt.localeCompare(a.createdAt); });
+  var h = '';
+  if (t.draft) h += '<div class="notice">一般的な内容の叩き台です。院長が確認して、医院のやり方に合わせて編集してください。</div>';
+  h += '<div class="card"><div class="muted">' + esc(t.category) + '</div><div class="title" style="font-size:18px;font-weight:800">' + esc(t.name) + '</div>' +
+    '<div class="row" style="margin-top:8px"><button class="btn sm" data-a="go" data-r="tplForm" data-id="' + t.id + '">編集</button></div>' +
+    (t.updatedBy ? '<div class="muted" style="margin-top:6px">最終更新：' + esc(t.updatedBy) + '　' + fmtTs(t.updatedAt) + '</div>' : '') + '</div>';
+  if (t.steps) h += '<div class="card"><h2>流れ・手順メモ</h2><div class="pre">' + esc(t.steps) + '</div></div>';
+  h += '<div class="card"><h2>🧰 器具・材料</h2><ul class="plain">' + (t.instruments || []).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  if ((t.cautions || []).length) h += '<div class="card"><h2>⚠️ 注意点</h2><ul class="plain">' + t.cautions.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+  var risks = pairs(t.risks);
+  if (risks.length) h += '<div class="card"><h2>🚨 不測の事態への対応</h2>' + risks.map(function (r) { return '<details class="risk"><summary>' + esc(r[0]) + '</summary><div>' + esc(r[1]) + '</div></details>'; }).join('') + '</div>';
+  if ((t.refs || []).length) h += refsCard(t.refs);
+  if (imp.length) {
+    h += '<div class="card"><h2>📝 振り返りからの声（' + imp.length + '）</h2>' + imp.slice(0, 10).map(function (f) {
+      return '<div class="fb">' + (f.tools ? '<div class="k">器具の過不足</div><div class="pre">' + esc(f.tools) + '</div>' : '') +
+        (f.improve ? '<div class="improve"><div class="k">改善案</div><div class="pre">' + esc(f.improve) + '</div></div>' : '') +
+        '<div class="muted">' + esc(f.author) + '　' + fmtTs(f.createdAt) + '</div></div>';
+    }).join('') + '</div>';
+  }
+  h += '<button class="btn danger block sm" data-a="deltpl" data-id="' + t.id + '">このテンプレートを削除</button>';
+  return h;
+}
+function viewTplForm(id) {
+  var t = id ? byId('templates', id) : { category: CATEGORIES[0], name: '', instruments: BASE_OPEN.concat(BASE_CLOSE), cautions: [], risks: [R_BLEED, R_VVR, R_SWALLOW], refs: [], steps: '' };
+  return '<form class="card" data-f="tpl" data-id="' + (id || '') + '">' +
+    '<label class="f">分類</label><select name="category">' + CATEGORIES.map(function (c) { return '<option' + (c === t.category ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
+    '<label class="f">処置名</label><input type="text" name="name" required value="' + esc(t.name) + '">' +
+    '<label class="f">器具・材料（1行に1つ）</label><textarea name="instruments" rows="10">' + esc((t.instruments || []).join('\n')) + '</textarea>' +
+    '<label class="f">注意点（1行に1つ）</label><textarea name="cautions" rows="4">' + esc((t.cautions || []).join('\n')) + '</textarea>' +
+    '<label class="f">不測の事態への対応（1行に1つ「起きたこと｜対応」）</label><textarea name="risks" rows="6">' + esc((t.risks || []).join('\n')) + '</textarea>' +
+    '<label class="f">流れ・手順メモ（自由に）</label><textarea name="steps" rows="4">' + esc(t.steps || '') + '</textarea>' +
+    '<label class="f">参考資料（1行に1つ「タイトル｜URL」）</label><textarea name="refs" rows="3" placeholder="例：〇〇学会 ガイドライン｜https://...">' + esc((t.refs || []).join('\n')) + '</textarea>' +
+    '<div class="muted">論文のPDFは貼らず、リンクだけを載せます（著作権のため）。</div>' +
+    '<div style="height:16px"></div><button class="btn primary block">保存</button></form>';
+}
+
+/* --- 統計 --- */
+function implantN(c) { return c.system ? (+c.implantCount || lines(c.implantSizes).length || 0) : 0; }
+function tally(rows, keyFn, valFn) {
+  var m = {};
+  rows.forEach(function (r) { var k = keyFn(r); if (!k) return; m[k] = (m[k] || 0) + valFn(r); });
+  return Object.keys(m).map(function (k) { return [k, m[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+}
+function tableHtml(head, rows) {
+  if (!rows.length) return '<p class="muted">データがありません</p>';
+  return '<table class="tbl"><thead><tr>' + head.map(function (h, i) { return '<th' + (i ? ' class="num"' : '') + '>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function (r) { return '<tr>' + r.map(function (x, i) { return '<td' + (i ? ' class="num"' : '') + '>' + esc(x) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+}
+function viewStats() {
+  var done = state.data.cases.filter(function (c) { return c.status === 'done' && c.date; });
+  var years = {}; years[new Date().getFullYear()] = 1;
+  done.forEach(function (c) { years[c.date.slice(0, 4)] = 1; });
+  var y = String(state.statYear);
+  var yc = done.filter(function (c) { return c.date.slice(0, 4) === y; });
+  var imp = yc.filter(function (c) { return implantN(c) > 0; });
+  var total = imp.reduce(function (s, c) { return s + implantN(c); }, 0);
+  var now = new Date(), isThisYear = +y === now.getFullYear();
+  var months = isThisYear ? now.getMonth() + 1 : 12;
+  var monthly = []; for (var m = 1; m <= 12; m++) monthly.push(0);
+  imp.forEach(function (c) { monthly[+c.date.slice(5, 7) - 1] += implantN(c); });
+  var max = Math.max.apply(null, monthly.concat([1]));
+  var upcoming = state.data.cases.filter(function (c) { return c.status !== 'done'; }).reduce(function (s, c) { return s + implantN(c); }, 0);
+
+  // 直近3か月（今日基準）の月平均
+  var from = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()).toISOString().slice(0, 10);
+  var recent = done.filter(function (c) { return c.date >= from && implantN(c) > 0; });
+  var recentBy = {}; recent.forEach(function (c) { recentBy[c.system] = (recentBy[c.system] || 0) + implantN(c); });
+
+  var h = '<div class="row" style="margin-bottom:12px"><label class="f grow" style="margin:0">年</label><select data-a="statyear" style="width:140px">' +
+    Object.keys(years).sort().reverse().map(function (k) { return '<option' + (k === y ? ' selected' : '') + '>' + k + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="tiles">' +
+    '<div class="tile"><div class="tv">' + total + '<small>本</small></div><div class="tl">' + y + '年の埋入本数</div></div>' +
+    '<div class="tile"><div class="tv">' + (Math.round(total / months * 10) / 10) + '<small>本</small></div><div class="tl">月平均' + (isThisYear ? '（今月まで）' : '') + '</div></div>' +
+    '<div class="tile"><div class="tv">' + yc.length + '<small>件</small></div><div class="tl">外科処置の件数</div></div>' +
+    '<div class="tile"><div class="tv">' + upcoming + '<small>本</small></div><div class="tl">予定中の埋入本数</div></div></div>';
+
+  h += '<div class="card"><h2>月別の埋入本数（' + y + '年）</h2><div class="bars">' + monthly.map(function (v, i) {
+    return '<div class="bar" title="' + (i + 1) + '月：' + v + '本"><div class="bv">' + (v || '') + '</div><div class="bf" style="height:' + (v / max * 100) + '%"></div><div class="bl">' + (i + 1) + '</div></div>';
+  }).join('') + '</div></div>';
+
+  var bySys = tally(imp, function (c) { return c.system; }, implantN);
+  h += '<div class="card"><h2>システム別</h2>' + tableHtml(['システム', '本数', '割合', '直近3か月 月平均'], bySys.map(function (r) {
+    return [r[0], r[1] + '本', Math.round(r[1] / total * 100) + '%', (Math.round((recentBy[r[0]] || 0) / 3 * 10) / 10) + '本'];
+  })) + '</div>';
+
+  var sizeRows = [];
+  imp.forEach(function (c) {
+    var ls = lines(c.implantSizes);
+    if (ls.length) ls.forEach(function (sz) { sizeRows.push({ k: c.system + '｜' + sz.replace(/[xX＊*]/g, '×').replace(/\s/g, ''), n: 1 }); });
+    else sizeRows.push({ k: c.system + '｜サイズ未入力', n: implantN(c) });
+  });
+  h += '<div class="card"><h2>サイズ別（多い順）</h2>' + tableHtml(['システム｜サイズ', '本数'], tally(sizeRows, function (r) { return r.k; }, function (r) { return r.n; }).map(function (r) { return [r[0], r[1] + '本']; })) + '</div>';
+
+  var bone = yc.filter(function (c) { return (c.grafts || []).indexOf('骨補填材') >= 0; });
+  var boneRows = {};
+  bone.forEach(function (c) {
+    var bs = (c.bones || []).length ? c.bones : [{ type: '種類未入力', amount: '', unit: 'g' }];
+    bs.forEach(function (b) {
+      var k = (b.type || '種類未入力') + '｜' + (b.unit || 'g');
+      var r = boneRows[k] || (boneRows[k] = { n: 0, amt: 0 });
+      r.n++; r.amt += parseFloat(b.amount) || 0;
+    });
+  });
+  h += '<div class="card"><h2>骨補填材</h2>' + tableHtml(['種類', '症例数', '使用量の合計'], Object.keys(boneRows).sort(function (a, b) { return boneRows[b].n - boneRows[a].n; }).map(function (k) {
+    var p = k.split('｜'); return [p[0], boneRows[k].n + '件', (Math.round(boneRows[k].amt * 100) / 100) + p[1]];
+  })) + '</div>';
+  var memStat = {};
+  yc.filter(function (c) { return (c.grafts || []).indexOf('メンブレン') >= 0; }).forEach(function (c) {
+    var ms = (c.membranes || []).length ? c.membranes : [{ type: '種類未入力', count: '' }];
+    ms.forEach(function (m) {
+      var r = memStat[m.type] || (memStat[m.type] = { n: 0, cnt: 0, sizes: {} });
+      r.n++; r.cnt += parseInt(m.count, 10) || 1;
+      if (m.size) r.sizes[m.size] = (r.sizes[m.size] || 0) + (parseInt(m.count, 10) || 1);
+    });
+  });
+  var abStat = {};
+  yc.filter(function (c) { return (c.grafts || []).indexOf('自家骨') >= 0; }).forEach(function (c) {
+    var ab = c.autobone || {}, k = (ab.site || '部位未入力') + '｜' + (ab.unit || 'g');
+    var r = abStat[k] || (abStat[k] = { n: 0, amt: 0 }); r.n++; r.amt += parseFloat(ab.amount) || 0;
+  });
+  if (Object.keys(abStat).length) h += '<div class="card"><h2>自家骨（採取部位別）</h2>' + tableHtml(['採取部位', '症例数', '量の合計'], Object.keys(abStat).sort(function (a, b) { return abStat[b].n - abStat[a].n; }).map(function (k) {
+    var p = k.split('｜'); return [p[0], abStat[k].n + '件', (Math.round(abStat[k].amt * 100) / 100) + p[1]];
+  })) + '</div>';
+  h += '<div class="card"><h2>メンブレン</h2>' + tableHtml(['種類（よく使うサイズ）', '症例数', '枚数'], Object.keys(memStat).sort(function (a, b) { return memStat[b].n - memStat[a].n; }).map(function (k) {
+    var sz = Object.keys(memStat[k].sizes).sort(function (a, b) { return memStat[k].sizes[b] - memStat[k].sizes[a]; }).slice(0, 2);
+    return [k + (sz.length ? '（' + sz.join('、') + '）' : ''), memStat[k].n + '件', memStat[k].cnt + '枚'];
+  })) + '<div class="muted" style="margin-top:6px">枚数が未入力のときは1枚として数えています</div></div>';
+
+  // 時間
+  var timed = yc.map(function (c) { return { c: c, d: durations(c) }; });
+  function avg(key, rows) { var xs = rows.map(function (r) { return r.d[key]; }).filter(function (x) { return x != null; }); return xs.length ? xs.reduce(function (a, b) { return a + b; }, 0) / xs.length : null; }
+  var full = timed.filter(function (r) { return r.d.total != null && r.d.net != null; });
+  var ratio = full.length ? full.reduce(function (s, r) { return s + r.d.net; }, 0) / full.reduce(function (s, r) { return s + r.d.total; }, 0) : null;
+  h += '<div class="card"><h2>時間（平均）</h2>' +
+    (timed.some(function (r) { return r.d.net != null || r.d.total != null; }) ?
+      tableHtml(['区間', '平均'], [['入室 → クリーニング開始', fmtMin(avg('wait', timed))], ['クリーニング・麻酔（→ 手術開始）', fmtMin(avg('pre', timed))],
+        ['正味の手術時間', fmtMin(avg('net', timed))], ['全体（入室 → 手術終了）', fmtMin(avg('total', timed))]]) +
+      (ratio != null ? '<div class="sharebar"><div style="width:' + Math.round(ratio * 100) + '%"></div></div><div class="small">全体のうち<b>正味の手術時間は ' + Math.round(ratio * 100) + '%</b>（全区間を記録した ' + full.length + ' 件）</div>' : '')
+      : '<p class="muted">症例画面の「時間と人数の記録」を入れると集計されます</p>') + '</div>';
+  var procNames = {}; yc.forEach(function (c) { procNames[c.procedureName || procName(tplsOf(c))] = 1; });
+  var procTime = Object.keys(procNames).map(function (pn) {
+    var rows = timed.filter(function (r) { return (r.c.procedureName || procName(tplsOf(r.c))) === pn; });
+    return [pn, rows.length + '件', fmtMin(avg('net', rows)), fmtMin(avg('total', rows))];
+  }).filter(function (r) { return r[2] !== '—' || r[3] !== '—'; });
+  if (procTime.length) h += '<div class="card"><h2>処置の組み合わせ別の平均時間</h2>' + tableHtml(['処置', '件数', '正味', '全体'], procTime) + '</div>';
+  var groups = [
+    ['ユニット3→2', function (c) { return c.sedation !== 'iv' && c.unitFlow === 'u32'; }],
+    ['ユニット2のみ', function (c) { return c.sedation !== 'iv' && c.unitFlow === 'u2'; }],
+    ['静脈内鎮静', function (c) { return c.sedation === 'iv'; }],
+    ['未設定・その他', function (c) { return c.sedation !== 'iv' && c.unitFlow !== 'u32' && c.unitFlow !== 'u2'; }]
+  ].map(function (g) {
+    var rows = timed.filter(function (r) { return g[1](r.c); });
+    return [g[0], rows.length + '件', fmtMin(avg('pre', rows)), fmtMin(avg('net', rows)), fmtMin(avg('total', rows))];
+  }).filter(function (r) { return r[1] !== '0件'; });
+  if (groups.length) h += '<div class="card"><h2>鎮静・ユニットの使い方別</h2><div style="overflow-x:auto">' +
+    tableHtml(['区分', '件数', '前処置', '正味', '全体'], groups) + '</div><div class="muted" style="margin-top:6px">前処置＝クリーニング・麻酔（→ 手術開始）。静脈内鎮静はユニットに関係なくまとめています</div></div>';
+  // 人手
+  var caseIds = yc.map(function (c) { return c.id; });
+  var sfb = state.data.feedback.filter(function (f) { return caseIds.indexOf(f.caseId) >= 0 && f.staff; });
+  var shortCases = {}; sfb.forEach(function (f) { if (f.staff === 'short') shortCases[f.caseId] = 1; });
+  var withN = yc.filter(function (c) { return +c.staffCount > 0; });
+  h += '<div class="card"><h2>人手</h2>' + tableHtml(['項目', ''], [
+    ['平均スタッフ人数', withN.length ? (Math.round(withN.reduce(function (s, c) { return s + +c.staffCount; }, 0) / withN.length * 10) / 10) + '人' : '—'],
+    ['「足りなかった」の声があった症例', Object.keys(shortCases).length + '件 / ' + yc.length + '件'],
+    ['振り返りでの回答（足りた／ぎりぎり／足りなかった）', ['ok', 'tight', 'short'].map(function (k) { return sfb.filter(function (f) { return f.staff === k; }).length; }).join('／')]
+  ]) + '</div>';
+
+  var procRows = flat(yc.map(function (c) { return tplIds(c).map(function (id) { var t = byId('templates', id); return t ? t.category + '｜' + t.name : '（削除されたテンプレート）'; }); }));
+  var byProc = tally(procRows, function (x) { return x; }, function () { return 1; });
+  h += '<div class="card"><h2>処置別の件数（併用はそれぞれに数える）</h2>' + tableHtml(['処置', '件数'], byProc.map(function (r) { return [r[0], r[1] + '件']; })) + '</div>';
+  h += '<p class="muted">「オペ終了」にした症例だけを集計しています。骨補填材の量は予定量です。実際と違ったときは症例を編集してください。</p>';
+  return h;
+}
+
+/* --- 掲示板 --- */
+function viewBoard() {
+  var ps = state.data.posts.slice().sort(function (a, b) { return b.createdAt.localeCompare(a.createdAt); });
+  return '<button class="btn primary block" data-a="go" data-r="postForm">＋ 投稿する</button><div style="height:12px"></div>' +
+    (ps.length ? ps.map(function (p) {
+      var n = state.data.comments.filter(function (c) { return c.postId === p.id; }).length;
+      return '<button class="card list-item" data-a="go" data-r="post" data-id="' + p.id + '"><div class="row"><b class="grow">' + esc(p.author) + '</b><span class="muted">' + fmtTs(p.createdAt) + '</span></div>' +
+        '<div class="pre" style="max-height:4.8em;overflow:hidden">' + esc(p.body) + '</div>' +
+        '<div class="muted" style="margin-top:4px">💬 ' + n + '</div></button>';
+    }).join('') : '<p class="muted">まだ投稿はありません</p>');
+}
+function viewPostForm() {
+  return '<form class="card" data-f="post"><textarea name="body" rows="6" required placeholder="お知らせ・質問・気づきなど"></textarea>' +
+    '<div class="hint">患者さんの個人情報は書かないでください。急ぎの連絡は直接か電話で。</div>' +
+    '<div style="height:12px"></div><button class="btn primary block">投稿</button></form>';
+}
+function viewPost(id) {
+  var p = byId('posts', id);
+  if (!p) return '<p class="muted">削除されました</p>';
+  var cs = state.data.comments.filter(function (c) { return c.postId === id; }).sort(function (a, b) { return a.createdAt.localeCompare(b.createdAt); });
+  return '<div class="card"><div class="row"><b class="grow">' + esc(p.author) + '</b><span class="muted">' + fmtTs(p.createdAt) + '</span></div>' +
+    '<div class="pre" style="margin-top:6px">' + esc(p.body) + '</div>' +
+    (p.author === state.name ? '<div class="row" style="justify-content:flex-end"><button class="btn link small" data-a="delpost" data-id="' + p.id + '">削除</button></div>' : '') + '</div>' +
+    '<div class="card"><h2>コメント（' + cs.length + '）</h2>' + cs.map(function (c) {
+      return '<div class="fb"><div class="row"><b class="grow">' + esc(c.author) + '</b><span class="muted">' + fmtTs(c.createdAt) + '</span></div><div class="pre">' + esc(c.body) + '</div>' +
+        (c.author === state.name ? '<div class="row" style="justify-content:flex-end"><button class="btn link small" data-a="delcomment" data-id="' + c.id + '">削除</button></div>' : '') + '</div>';
+    }).join('') +
+    '<form data-f="comment" data-id="' + id + '" style="margin-top:8px"><textarea name="body" rows="2" required placeholder="コメントを書く"></textarea>' +
+    '<div style="height:8px"></div><button class="btn primary block">送信</button></form></div>';
+}
+
+/* ---------- 操作 ---------- */
+function go(name, id) { state.route = name ? { name: name, id: id || '' } : null; state.history.push(state.route); render(); window.scrollTo(0, 0); }
+state.history = [null];
+function back() {
+  state.history.pop();
+  state.route = state.history.length ? state.history[state.history.length - 1] : null;
+  render(); window.scrollTo(0, 0);
+}
+function replaceRoute(name, id) {
+  state.history.pop();
+  var top = state.history[state.history.length - 1];
+  state.route = name ? { name: name, id: id || '' } : null;
+  if (!(top && state.route && top.name === state.route.name && top.id === state.route.id)) state.history.push(state.route);
+  render(); window.scrollTo(0, 0);
+}
+
+var ASK = {
+  logout: function () { return 'この端末からログアウトしますか？（データは消えません）'; },
+  delcase: function () { return 'この症例と振り返りを削除しますか？'; },
+  delfb: function () { return 'この振り返りを削除しますか？'; },
+  deltpl: function (id) { return state.data.cases.some(function (c) { return tplIds(c).indexOf(id) >= 0; }) ? 'このテンプレートを使った症例があります。それでも削除しますか？' : 'このテンプレートを削除しますか？'; },
+  delpost: function () { return 'この投稿を削除しますか？'; },
+  delcomment: function () { return 'このコメントを削除しますか？'; }
+};
+function askModal(msg) {
+  return new Promise(function (resolve) {
+    var bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><p>' + esc(msg) + '</p><div class="row"><button class="btn grow" data-m="no">やめる</button><button class="btn danger grow" data-m="yes">削除する</button></div></div>';
+    if (/ログアウト/.test(msg)) bg.querySelector('[data-m=yes]').textContent = 'ログアウト';
+    bg.addEventListener('click', function (e) {
+      var m = e.target.getAttribute('data-m');
+      if (m || e.target === bg) { e.stopPropagation(); bg.remove(); resolve(m === 'yes'); }
+    });
+    document.body.appendChild(bg);
+  });
+}
+document.addEventListener('click', function (e) {
+  var el = e.target.closest('[data-a]');
+  if (!el || el.tagName === 'SELECT') return;
+  var a = el.getAttribute('data-a'), id = el.getAttribute('data-id');
+  if (a === 'check') return; // change イベントで処理
+  if (ASK[a] && !el._ok) {
+    askModal(ASK[a](id)).then(function (ok) { if (ok) { el._ok = true; el.click(); el._ok = false; } });
+    return;
+  }
+  if (a === 'tab') { state.tab = el.getAttribute('data-tab'); state.route = null; state.history = [null]; render(); window.scrollTo(0, 0); }
+  else if (a === 'go') go(el.getAttribute('data-r'), id);
+  else if (a === 'back') back();
+  else if (a === 'reload') { toast('更新中…'); loadAll(); }
+  else if (a === 'agree') { LS.set(K_AGREE, '1'); state.agreed = true; render(); loadAll(); }
+  else if (a === 'logout') {
+    [K_PASS, K_NAME, K_AGREE].forEach(LS.del); location.reload();
+  }
+  else if (a === 'confirm') {
+    run('confirm', { caseId: id, name: state.name }).then(function (c) { upsert('cases', c); render(); toast('確認しました'); });
+  }
+  else if (a === 'now') {
+    var d = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    var tf = {}; tf[el.getAttribute('data-k')] = hm;
+    run('patch', { kind: 'cases', id: id, fields: { times: tf } }).then(function (c2) { upsert('cases', c2); render(); toast(hm + ' を記録しました'); });
+  }
+  else if (a === 'finish') {
+    run('patch', { kind: 'cases', id: id, fields: { status: 'done' } }).then(function (c2) { upsert('cases', c2); render(); });
+  }
+  else if (a === 'delcase') {
+    var fbs = state.data.feedback.filter(function (f) { return f.caseId === id; });
+    Promise.all(fbs.map(function (f) { return run('remove', { kind: 'feedback', id: f.id }); }))
+      .then(function () { return run('remove', { kind: 'cases', id: id }); })
+      .then(function () { fbs.forEach(function (f) { drop('feedback', f.id); }); drop('cases', id); back(); toast('削除しました'); });
+  }
+  else if (a === 'delfb') {
+    run('remove', { kind: 'feedback', id: id }).then(function () { drop('feedback', id); render(); });
+  }
+  else if (a === 'deltpl') {
+    var used = state.data.cases.some(function (c) { return tplIds(c).indexOf(id) >= 0; });
+    run('remove', { kind: 'templates', id: id }).then(function () { drop('templates', id); back(); });
+  }
+  else if (a === 'delpost') {
+    var cs = state.data.comments.filter(function (c) { return c.postId === id; });
+    Promise.all(cs.map(function (c) { return run('remove', { kind: 'comments', id: c.id }); }))
+      .then(function () { return run('remove', { kind: 'posts', id: id }); })
+      .then(function () { cs.forEach(function (c) { drop('comments', c.id); }); drop('posts', id); back(); });
+  }
+  else if (a === 'delcomment') {
+    run('remove', { kind: 'comments', id: id }).then(function () { drop('comments', id); render(); });
+  }
+});
+
+document.addEventListener('change', function (e) {
+  var el = e.target;
+  var a = el.getAttribute('data-a');
+  if (a === 'check') {
+    var c = byId('cases', el.getAttribute('data-id')), item = c.items[+el.getAttribute('data-i')];
+    el.disabled = true;
+    run('toggleCheck', { caseId: c.id, item: item, value: el.checked, name: state.name })
+      .then(function (c2) { upsert('cases', c2); render(); })
+      .catch(function () { render(); });
+  } else if (el.name === 'tpl') {
+    var fm = el.form, ids = [].slice.call(fm.querySelectorAll('input[name=tpl]:checked')).map(function (x) { return x.value; });
+    var tsx = ids.map(function (i) { return byId('templates', i); }).filter(Boolean), box2 = document.getElementById('implantBox');
+    if (box2) box2.style.display = hasImplantCat(tsx) ? '' : 'none';
+    if (fm.elements.unitFlow && !fm.elements.unitFlow.value && ids.indexOf('t-imm') >= 0) fm.elements.unitFlow.value = 'u32';
+  } else if (el.name === 'graft' && el.value === '自家骨') {
+    var ax = document.getElementById('autoBox'); if (ax) ax.style.display = el.checked ? '' : 'none';
+  } else if (el.name === 'abSite') {
+    var ao = el.form.elements.abOther; if (ao) ao.style.display = el.value === '__other' ? '' : 'none';
+  } else if (el.name === 'graft' && el.value === 'メンブレン') {
+    var mb = document.getElementById('memBox'); if (mb) mb.style.display = el.checked ? '' : 'none';
+  } else if (el.name === 'graft' && el.value === '骨補填材') {
+    var bb = document.getElementById('boneBox'); if (bb) bb.style.display = el.checked ? '' : 'none';
+  } else if (el.name === 'sedation') {
+    var ab = document.getElementById('anesBox'); if (ab) ab.style.display = el.value === 'iv' ? '' : 'none';
+    var uf = el.form && el.form.elements.unitFlow;
+    if (uf && el.value === 'iv') uf.value = 'u2';
+  } else if (a === 'time') {
+    var tf2 = {}; tf2[el.getAttribute('data-k')] = el.value;
+    var cc = byId('cases', el.getAttribute('data-id'));
+    if (!cc.times) { cc.times = {}; }
+    run('patch', { kind: 'cases', id: cc.id, fields: { times: tf2 } }).then(function (c2) { upsert('cases', c2); render(); });
+  } else if (a === 'staffn') {
+    var n = parseInt(el.value.replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }), 10);
+    run('patch', { kind: 'cases', id: el.getAttribute('data-id'), fields: { staffCount: n > 0 ? n : '' } }).then(function (c2) { upsert('cases', c2); render(); toast('人数を記録しました'); });
+  } else if (a === 'statyear') {
+    state.statYear = +el.value; render();
+  } else if (a === 'fbfilter') {
+    state.fbFilter = el.value; render();
+  }
+});
+
+document.addEventListener('submit', function (e) {
+  var f = e.target, kind = f.getAttribute('data-f');
+  if (!kind) return;
+  e.preventDefault();
+  if (state.busy) return;
+  var v = function (n) { var x = f.elements[n]; return x ? String(x.value).trim() : ''; };
+  var id = f.getAttribute('data-id');
+  var btn = f.querySelector('button:last-of-type');
+  function busy(p) {
+    state.busy = true; if (btn) btn.disabled = true;
+    return p.then(function (r) { state.busy = false; return r; }, function (err) { state.busy = false; if (btn) btn.disabled = false; throw err; });
+  }
+
+  if (kind === 'pass') {
+    state.pass = v('pass');
+    busy(call('ping')).then(function () { LS.set(K_PASS, state.pass); render(); if (state.name && state.agreed) loadAll(); })
+      .catch(function (err) {
+        var m = String(err && err.message || err);
+        state.pass = ''; render();
+        toast(m.indexOf('LOCKED') >= 0 ? '入力ミスが続いたため、10分ほどお待ちください' : m.indexOf('PASSCODE') >= 0 ? '合言葉が違います' : 'つながりませんでした。電波を確認してください');
+      });
+  }
+  else if (kind === 'name' || kind === 'rename') {
+    state.name = v('name'); LS.set(K_NAME, state.name);
+    if (kind === 'rename') { toast('変更しました'); back(); } else { render(); if (state.agreed) loadAll(); }
+  }
+  else if (kind === 'case') {
+    var chart = v('chartNo');
+    if (!/^[0-9A-Za-z\-]+$/.test(chart)) { toast('カルテ番号は半角英数字で入力してください'); return; }
+    var c = id ? clone(byId('cases', id)) : { id: uid(), status: 'planned', checks: {}, confirmedBy: [], createdBy: state.name, createdAt: new Date().toISOString() };
+    var tids = [].slice.call(f.querySelectorAll('input[name=tpl]:checked')).map(function (x) { return x.value; });
+    if (!tids.length) { toast('処置を1つ以上選んでください'); return; }
+    c.templateIds = tids; delete c.templateId; c.procedureName = procName(tplsOf(c)); c.items = c.items || [];
+    c.date = v('date'); c.time = v('time'); c.chartNo = chart; c.age = v('age'); c.sex = v('sex'); c.site = v('site'); c.detail = v('detail');
+    c.roles = { surgeon: v('surgeon'), assist: v('assist'), circ: v('circ') }; c.notes = v('notes');
+    c.sedation = (f.querySelector('input[name=sedation]:checked') || {}).value || 'none';
+    c.anesthetist = c.sedation === 'iv' ? v('anesthetist') : '';
+    c.unitFlow = v('unitFlow');
+    if (hasImplantCat(tplsOf(c))) {
+      c.system = v('system');
+      c.implantSizes = c.system ? v('implantSizes') : '';
+      var cnt = parseInt(String(v('implantCount')).replace(/[０-９]/g, function (d) { return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }), 10);
+      c.implantCount = c.system ? (cnt > 0 ? cnt : lines(c.implantSizes).length || '') : '';
+      c.guide = (f.querySelector('input[name=guide]:checked') || {}).value || 'none';
+      c.grafts = [].slice.call(f.querySelectorAll('input[name=graft]:checked')).map(function (x) { return x.value; });
+      c.bones = [];
+      if (c.grafts.indexOf('骨補填材') >= 0) {
+        [].slice.call(f.querySelectorAll('input[name=bone]:checked')).forEach(function (x) {
+          var i = x.value; c.bones.push({ type: BONE_MATERIALS[+i], amount: v('boneAmt' + i), unit: v('boneUnit' + i) });
+        });
+        if (v('boneOther')) c.bones.push({ type: v('boneOther'), amount: v('boneAmtX'), unit: v('boneUnitX') });
+      }
+      c.autobone = c.grafts.indexOf('自家骨') >= 0
+        ? { site: v('abSite') === '__other' ? v('abOther') : v('abSite'), amount: v('abAmt'), unit: v('abUnit') } : null;
+      c.membranes = [];
+      if (c.grafts.indexOf('メンブレン') >= 0) {
+        [].slice.call(f.querySelectorAll('input[name=mem]:checked')).forEach(function (x) {
+          var i = x.value; c.membranes.push({ type: MEMBRANES[+i], size: v('memSize' + i), count: v('memCnt' + i) });
+        });
+        if (v('memOther')) c.membranes.push({ type: v('memOther'), size: v('memSizeX'), count: v('memCntX') });
+      }
+    } else {
+      c.system = ''; c.implantSizes = ''; c.implantCount = ''; c.guide = 'none'; c.grafts = []; c.bones = []; c.membranes = []; c.autobone = null;
+    }
+    var oldM = c.managed || c.autoItems || [], newM = managedItems(c);
+    c.items = c.items.filter(function (i) { return oldM.indexOf(i) < 0 || newM.indexOf(i) >= 0 || (c.checks || {})[i]; });
+    newM.forEach(function (i) { if (c.items.indexOf(i) < 0) c.items.push(i); });
+    c.managed = newM; delete c.autoItems;
+    busy(run('save', { kind: 'cases', obj: c })).then(function (c2) { upsert('cases', c2); toast('保存しました'); replaceRoute('case', c2.id); });
+  }
+  else if (kind === 'additem') {
+    var c3 = clone(byId('cases', id)), item = v('item');
+    if (c3.items.indexOf(item) >= 0) { toast('すでにあります'); return; }
+    c3.items.push(item);
+    busy(run('save', { kind: 'cases', obj: c3 })).then(function (c4) { upsert('cases', c4); render(); });
+  }
+  else if (kind === 'fb') {
+    var fb = { id: uid(), caseId: id, author: state.name, createdAt: new Date().toISOString(),
+      flow: (f.querySelector('input[name=flow]:checked') || {}).value || 'plan',
+      staff: (f.querySelector('input[name=staff]:checked') || {}).value || '', slow: v('slow'),
+      good: v('good'), tools: v('tools'), hiyari: v('hiyari'), improve: v('improve') };
+    if (!fb.good && !fb.tools && !fb.hiyari && !fb.improve && !fb.slow) { toast('どれか1つは書いてください'); return; }
+    busy(run('save', { kind: 'feedback', obj: fb })).then(function (x) { upsert('feedback', x); render(); toast('ありがとうございます'); });
+  }
+  else if (kind === 'tpl') {
+    var t2 = id ? clone(byId('templates', id)) : { id: uid() };
+    t2.category = v('category'); t2.name = v('name'); t2.instruments = lines(v('instruments'));
+    t2.cautions = lines(v('cautions')); t2.risks = lines(v('risks')); t2.steps = v('steps'); t2.refs = lines(v('refs'));
+    t2.draft = false; t2.updatedBy = state.name;
+    busy(run('save', { kind: 'templates', obj: t2 })).then(function (x) { upsert('templates', x); toast('保存しました'); replaceRoute('tpl', x.id); });
+  }
+  else if (kind === 'post') {
+    var p = { id: uid(), author: state.name, body: v('body'), createdAt: new Date().toISOString() };
+    busy(run('save', { kind: 'posts', obj: p })).then(function (x) { upsert('posts', x); replaceRoute('post', x.id); });
+  }
+  else if (kind === 'comment') {
+    var cm = { id: uid(), postId: id, author: state.name, body: v('body'), createdAt: new Date().toISOString() };
+    busy(run('save', { kind: 'comments', obj: cm })).then(function (x) { upsert('comments', x); render(); });
+  }
+});
+
+/* ---------- 起動 ---------- */
+render();
+if (state.pass && state.name && state.agreed) loadAll();
+</script>
+</body>
+</html>
