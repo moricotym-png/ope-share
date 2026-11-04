@@ -212,6 +212,13 @@ var HOLDERS = { pen: 'ペン型', angled: '曲（斜め）', both: '両方' };
 var HOLDER_SHORT = { both: 'ペン型・曲', pen: 'ペン型', angled: '曲（斜め）' };
 /* アドソンピンセット：症例ごとに使うものだけ選ぶ（未選択の症例は従来の無鉤・直／無鉤・曲） */
 /* 患者さんへの対応で配慮すること（性格の評価ではなく、スタッフの対応のしかたとして選ぶ） */
+/* オペの難易度（ざっくり3段階） */
+var DIFF = { '1': 'やさしい', '2': 'ふつう', '3': '難しい' };
+function diffBadge(c) {
+  if (!c.difficulty) return '';
+  var n = +c.difficulty;
+  return '<span class="badge ' + (n === 3 ? 'warn' : n === 1 ? 'ok' : 'gray') + '">難易度 ' + '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n) + ' ' + DIFF[c.difficulty] + '</span>';
+}
 var CARE = ['不安・緊張が強い', '痛みに敏感', '嘔吐反射が強い', '細かい説明を希望する', '説明がスムーズに伝わる', '待ち時間・言葉づかいに敏感', '会話は少なめが楽'];
 var ADSONS = ['無鉤・直', '無鉤・曲', '有鉤・直', '有鉤・曲'];
 var ADSON_DEFAULT = ['無鉤・直', '無鉤・曲'];
@@ -452,6 +459,7 @@ function sampleDB() {
   [0, 2].forEach(function (i) { var c = cases[i]; c.items = sItems(c); c.managed = c.items.slice(); });
   sCheck(cases[2], 999);
   sCheck(cases[0], 6);
+  ['3', '2', '3', '1'].forEach(function (d, i) { cases[i].difficulty = d; });
   [['60代', '男性'], ['50代', '女性'], ['70代', '女性'], ['40代', '男性']].forEach(function (a, i) { cases[i].age = a[0]; cases[i].sex = a[1]; });
   cases[1].site = '#45 #46 2本'; cases[2].site = '#26 1本'; cases[3].site = '#14 1本';
   var feedback = [
@@ -467,11 +475,11 @@ function sampleDB() {
 }
 function demoLoad() {
   if (demoDB) return demoDB;
-  try { demoDB = JSON.parse(LS.get('ope-demo-db-v7') || 'null'); } catch (e) { demoDB = null; }
+  try { demoDB = JSON.parse(LS.get('ope-demo-db-v8') || 'null'); } catch (e) { demoDB = null; }
   if (!demoDB) demoDB = sampleDB();
   return demoDB;
 }
-function demoSave() { LS.set('ope-demo-db-v7', JSON.stringify(demoDB)); }
+function demoSave() { LS.set('ope-demo-db-v8', JSON.stringify(demoDB)); }
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
 function demoApi(pass, op, p) {
@@ -726,6 +734,7 @@ function caseRow(c) {
   return '<button class="card list-item" data-a="go" data-r="case" data-id="' + c.id + '">' +
     '<div class="row"><div class="grow"><div class="who">' + esc(who(c)) + '</div>' +
     '<div class="title">' + esc(c.procedureName || procName(tplsOf(c))) + '</div>' +
+    (c.difficulty ? '<div style="margin:2px 0">' + diffBadge(c) + '</div>' : '') +
     '<div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '　' + esc(c.site || '') + (c.system ? '　' + esc(c.system) : '') + (c.sedation === 'iv' ? '　鎮静' : '') + ((c.care || []).length ? '　🤝' + c.care.length : '') + (c.status !== 'done' ? '　確認 ' + (c.confirmedBy || []).length + '人' : '') + '</div></div>' + badge + '</div></button>';
 }
 function viewCases() {
@@ -763,6 +772,9 @@ function viewCaseForm(id) {
     '<label class="f">部位・本数</label><input type="text" name="site" placeholder="例：#36 1本" value="' + esc(c.site) + '">' +
     implantFields(c) +
     '<label class="f">詳細（サイズ・材料など）</label><input type="text" name="detail" placeholder="例：φ4.0×10mm" value="' + esc(c.detail) + '">' +
+    '<label class="f">難易度（ざっくり）</label><div class="seg">' + Object.keys(DIFF).map(function (k) {
+      return '<label><input type="radio" name="difficulty" value="' + k + '"' + (c.difficulty === k ? ' checked' : '') + '><span>' + '★★★'.slice(0, +k) + ' ' + DIFF[k] + '</span></label>';
+    }).join('') + '</div>' +
     '<label class="f">メス刃（使うものすべて）</label><div class="seg">' + BLADES.map(function (b) {
       return '<label><input type="checkbox" name="blade" value="' + esc(b) + '"' + ((c.blades || []).indexOf(b) >= 0 ? ' checked' : '') + '><span>' + esc(b) + '</span></label>';
     }).join('') + '</div>' +
@@ -929,7 +941,7 @@ function viewCase(id) {
   h += '<div class="card"><div class="who">' + esc(who(c)) + '</div><div class="muted">' + fmtDate(c.date) + ' ' + esc(c.time || '') + '</div>' +
     '<div class="title" style="font-size:18px;font-weight:800">' + esc(c.procedureName || procName(ts)) + '</div>' +
     (c.site ? '<div>' + esc(c.site) + '</div>' : '') +
-    (c.sedation === 'iv' || UNITS[c.unitFlow] && c.unitFlow ? '<div class="row wrap" style="margin-top:6px;gap:6px">' +
+    (c.difficulty || c.sedation === 'iv' || UNITS[c.unitFlow] && c.unitFlow ? '<div class="row wrap" style="margin-top:6px;gap:6px">' + diffBadge(c) +
       (c.sedation === 'iv' ? '<span class="badge warn">静脈内鎮静' + (c.anesthetist ? '（' + esc(c.anesthetist) + '）' : '') + '</span>' : '') +
       (c.unitFlow ? '<span class="badge gray">' + esc(UNITS[c.unitFlow]) + '</span>' : '') + '</div>' : '') + (implantSummary(c) ? '<div class="small" style="margin-top:4px">' + esc(implantSummary(c)) + '</div>' : '') +
     (c.detail ? '<div class="muted">' + esc(c.detail) + '</div>' : '') +
@@ -1260,6 +1272,14 @@ function viewStats() {
     return [pn, rows.length + '件', fmtMin(avg('net', rows)), fmtMin(avg('total', rows))];
   }).filter(function (r) { return r[2] !== '—' || r[3] !== '—'; });
   if (procTime.length) h += '<div class="card"><h2>処置の組み合わせ別の平均時間</h2>' + tableHtml(['処置', '件数', '正味', '全体'], procTime) + '</div>';
+  var diffRows = ['1', '2', '3', ''].map(function (k) {
+    var rows = timed.filter(function (r) { return (r.c.difficulty || '') === k; });
+    var ids = rows.map(function (r) { return r.c.id; });
+    var shortN = {}; state.data.feedback.forEach(function (f) { if (ids.indexOf(f.caseId) >= 0 && f.staff === 'short') shortN[f.caseId] = 1; });
+    return [k ? DIFF[k] : '未設定', rows.length + '件', fmtMin(avg('net', rows)), fmtMin(avg('total', rows)), Object.keys(shortN).length + '件'];
+  }).filter(function (r) { return r[1] !== '0件'; });
+  if (diffRows.length) h += '<div class="card"><h2>難易度別</h2><div style="overflow-x:auto">' +
+    tableHtml(['難易度', '件数', '正味', '全体', '人手不足の声'], diffRows) + '</div></div>';
   var groups = [
     ['ユニット3→2', function (c) { return c.sedation !== 'iv' && c.unitFlow === 'u32'; }],
     ['ユニット2のみ', function (c) { return c.sedation !== 'iv' && c.unitFlow === 'u2'; }],
@@ -1522,6 +1542,7 @@ document.addEventListener('submit', function (e) {
     c.date = v('date'); c.time = v('time'); c.chartNo = chart; c.age = v('age'); c.sex = v('sex'); c.site = v('site'); c.detail = v('detail');
     c.roles = { surgeon: v('surgeon'), assist: v('assist'), circ: v('circ') }; c.notes = v('notes');
     c.care = [].slice.call(f.querySelectorAll('input[name=care]:checked')).map(function (x) { return x.value; });
+    c.difficulty = (f.querySelector('input[name=difficulty]:checked') || {}).value || '';
     c.blades = [].slice.call(f.querySelectorAll('input[name=blade]:checked')).map(function (x) { return x.value; });
     c.holder = (f.querySelector('input[name=holder]:checked') || {}).value || 'both';
     c.adsons = [].slice.call(f.querySelectorAll('input[name=adson]:checked')).map(function (x) { return x.value; });
