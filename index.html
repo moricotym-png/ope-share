@@ -995,6 +995,8 @@ function viewCase(id) {
     h += '<div class="card"><h2>📝 振り返り（' + fbs.length + '）</h2>' + (fbs.length ? fbs.map(fbView).join('') : '<p class="muted">まだありません。手術に入った人は当日中に書きましょう。</p>') + '</div>';
     var mine = fbs.some(function (f) { return f.author === state.name; });
     h += mine ? '' : fbForm(c.id);
+    h += '<button class="btn block sm" data-a="unfinish" data-id="' + c.id + '">オペ前（予定）に戻す</button><div style="height:4px"></div>' +
+      '<div class="muted center">「オペ終了」を間違えて押したときに使います</div>';
   }
   h += '<div style="height:8px"></div><button class="btn danger block sm" data-a="delcase" data-id="' + c.id + '">この症例を削除</button>';
   return h;
@@ -1359,6 +1361,7 @@ function replaceRoute(name, id) {
 }
 
 var ASK = {
+  unfinish: function () { return 'この症例をオペ前（予定）に戻しますか？（書かれた振り返りは消えません）'; },
   delitem: function () { return 'この器具をこの症例のリストから外しますか？（あとで「元に戻す」で戻せます）'; },
   logout: function () { return 'この端末からログアウトしますか？（データは消えません）'; },
   delcase: function () { return 'この症例と振り返りを削除しますか？'; },
@@ -1374,6 +1377,7 @@ function askModal(msg) {
     bg.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><p>' + esc(msg) + '</p><div class="row"><button class="btn grow" data-m="no">やめる</button><button class="btn danger grow" data-m="yes">削除する</button></div></div>';
     if (/ログアウト/.test(msg)) bg.querySelector('[data-m=yes]').textContent = 'ログアウト';
     if (/外しますか/.test(msg)) bg.querySelector('[data-m=yes]').textContent = '外す';
+    if (/戻しますか/.test(msg)) { var y = bg.querySelector('[data-m=yes]'); y.textContent = '戻す'; y.className = 'btn primary grow'; }
     bg.addEventListener('click', function (e) {
       var m = e.target.getAttribute('data-m');
       if (m || e.target === bg) { e.stopPropagation(); bg.remove(); resolve(m === 'yes'); }
@@ -1430,6 +1434,9 @@ document.addEventListener('click', function (e) {
     if (k5 && k5.sec !== EXTRA_HEAD.slice(1, -1)) { c5.removed = c5.removed || []; if (c5.removed.indexOf(k5.key) < 0) c5.removed.push(k5.key); }
     c5.items = mergeSections([c5.items]);
     run('save', { kind: 'cases', obj: c5 }).then(function (c6) { upsert('cases', c6); render(); toast('削除しました'); });
+  }
+  else if (a === 'unfinish') {
+    run('patch', { kind: 'cases', id: id, fields: { status: 'planned' } }).then(function (c2) { upsert('cases', c2); render(); toast('オペ前に戻しました'); });
   }
   else if (a === 'finish') {
     run('patch', { kind: 'cases', id: id, fields: { status: 'done' } }).then(function (c2) { upsert('cases', c2); render(); });
