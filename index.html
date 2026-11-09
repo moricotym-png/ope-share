@@ -5,6 +5,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>オペ共有</title>
+<!--pwa-->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="オペ共有">
+<!--/pwa-->
 <style>
 :root {
   --bg: #ffffff;
@@ -185,13 +194,20 @@ var LS0 = { get: function (k) { try { return localStorage.getItem(k); } catch (e
 /* GitHub Pages 版：LINEのリンク末尾「#k=…」に入っている接続先（Apps ScriptのデプロイID）を端末に覚える */
 var API_ID = (function () {
   var m = /[#&]k=([A-Za-z0-9_\-]{20,})/.exec(location.hash || '');
-  if (m) {
-    LS0.set('ope-api', m[1]);
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
-    return m[1];
+  if (m) { LS0.set('ope-api', m[1]); return m[1]; }
+  var saved = IS_GAS ? '' : (LS0.get('ope-api') || '');
+  /* ブックマークやホーム画面のアイコンにも接続先が残るよう、URLの #k= を付け直す */
+  if (saved && /github\.io$/.test(location.hostname)) {
+    try { history.replaceState(null, '', location.pathname + location.search + '#k=' + saved); } catch (e) {}
   }
-  return IS_GAS ? '' : (LS0.get('ope-api') || '');
+  return saved;
 })();
+var IS_STANDALONE = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+var UA = navigator.userAgent || '';
+var IS_IOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && 'ontouchend' in document);
+var IS_LINE = / Line\//i.test(UA);
+var installPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installPrompt = e; });
 var IS_API = !IS_GAS && !!API_ID;
 var IS_PAGES = /github\.io$/.test(location.hostname);
 var IS_DEMO = !IS_GAS && !IS_API && !IS_PAGES;
@@ -665,6 +681,7 @@ function render() {
     else if (r.name === 'tplForm') { body = viewTplForm(r.id); title = r.id ? 'テンプレートを編集' : '新しいテンプレート'; }
     else if (r.name === 'post') { body = viewPost(r.id); title = '掲示板'; }
     else if (r.name === 'postForm') { body = viewPostForm(); title = '新しい投稿'; }
+    else if (r.name === 'a2hs') { body = viewA2hs(); title = 'ホーム画面に追加'; }
     else if (r.name === 'rules') { body = viewRules(false); title = '運用ルール'; }
     else if (r.name === 'me') { body = viewMe(); title = '設定'; }
   } else {
@@ -710,8 +727,37 @@ function viewRules(gate) {
   if (gate) html += '<button class="btn primary block" data-a="agree">読んで、守ることに同意します</button>';
   return html + '</div>';
 }
+function a2hsBanner() {
+  if (!IS_PAGES || IS_STANDALONE || LS.get('ope-a2hs-hide') === '1') return '';
+  return '<div class="notice info row" style="gap:8px"><div class="grow">📲 ホーム画面に追加すると、LINEを探さずにアイコンから開けます</div>' +
+    '<button class="btn sm" data-a="go" data-r="a2hs">方法</button><button class="btn link small" data-a="a2hshide" aria-label="閉じる">×</button></div>';
+}
+function viewA2hs() {
+  var h = '<div class="card"><h2>📲 ホーム画面に追加する</h2><p class="small">一度追加すれば、ふつうのアプリと同じようにアイコンから開けます。</p></div>';
+  if (IS_STANDALONE) return h + '<div class="notice info">すでにホーム画面のアイコンから開いています。</div>';
+  if (IS_LINE) {
+    h += '<div class="card"><h2>まずブラウザで開き直す</h2><ol class="rules"><li>右上（または右下）のメニュー「︙」や共有ボタンを押す</li>' +
+      '<li>「' + (IS_IOS ? 'Safari' : 'ブラウザ') + 'で開く」を選ぶ</li><li>開いた画面で、もう一度この「方法」を押す</li></ol>' +
+      '<p class="muted">LINEの中の画面からは、ホーム画面に追加できません。</p></div>';
+    return h;
+  }
+  if (installPrompt) {
+    h += '<button class="btn primary block" data-a="install">アプリとして追加する</button><div style="height:12px"></div>';
+  }
+  if (IS_IOS) {
+    h += '<div class="card"><h2>iPhone（Safari）</h2><ol class="rules"><li>画面下の共有ボタン（□に↑のマーク）を押す</li>' +
+      '<li>下にスクロールして「ホーム画面に追加」を押す</li><li>右上の「追加」を押す</li></ol>' +
+      '<p class="muted">iPhoneでは、アイコンから最初に開いたときだけ合言葉と名前をもう一度入れます。</p></div>';
+  } else {
+    h += '<div class="card"><h2>Android（Chrome）</h2><ol class="rules"><li>右上の「︙」を押す</li>' +
+      '<li>「ホーム画面に追加」または「アプリをインストール」を押す</li><li>「追加」または「インストール」を押す</li></ol></div>';
+  }
+  h += '<div class="card"><h2>ブックマークにする場合</h2><p class="small">この画面を開いたままブラウザのブックマーク（お気に入り）に登録すれば、そこからも開けます。</p></div>';
+  return h;
+}
 function viewMe() {
-  return '<div class="card"><label class="f">表示名</label><form data-f="rename" class="row">' +
+  return '<div class="card"><button class="btn block" data-a="go" data-r="a2hs">📲 ホーム画面に追加する方法</button></div>' +
+    '<div class="card"><label class="f">表示名</label><form data-f="rename" class="row">' +
     '<input type="text" name="name" value="' + esc(state.name) + '" maxlength="20" required><button class="btn">変更</button></form></div>' +
     '<div class="card"><button class="btn block" data-a="go" data-r="rules">運用ルールを見る</button><div style="height:8px"></div>' +
     '<button class="btn danger block" data-a="logout">この端末からログアウト</button></div>';
@@ -739,9 +785,10 @@ function caseRow(c) {
 }
 function viewCases() {
   var cs = state.data.cases.slice();
+  var banner = a2hsBanner();
   var up = cs.filter(function (c) { return c.status !== 'done'; }).sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); });
   var done = cs.filter(function (c) { return c.status === 'done'; }).sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
-  return '<button class="btn primary block" data-a="go" data-r="caseForm">＋ 新しい症例を登録</button>' +
+  return banner + '<button class="btn primary block" data-a="go" data-r="caseForm">＋ 新しい症例を登録</button>' +
     '<div class="sectionhead"><h2>これからのオペ（' + up.length + '）</h2></div>' +
     (up.length ? up.map(caseRow).join('') : '<p class="muted">予定はありません</p>') +
     '<div class="sectionhead"><h2>終わったオペ</h2></div>' +
@@ -1434,6 +1481,12 @@ document.addEventListener('click', function (e) {
     if (k5 && k5.sec !== EXTRA_HEAD.slice(1, -1)) { c5.removed = c5.removed || []; if (c5.removed.indexOf(k5.key) < 0) c5.removed.push(k5.key); }
     c5.items = mergeSections([c5.items]);
     run('save', { kind: 'cases', obj: c5 }).then(function (c6) { upsert('cases', c6); render(); toast('削除しました'); });
+  }
+  else if (a === 'a2hshide') { LS.set('ope-a2hs-hide', '1'); render(); }
+  else if (a === 'install') {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then(function () { installPrompt = null; render(); }, function () {});
   }
   else if (a === 'unfinish') {
     run('patch', { kind: 'cases', id: id, fields: { status: 'planned' } }).then(function (c2) { upsert('cases', c2); render(); toast('オペ前に戻しました'); });
